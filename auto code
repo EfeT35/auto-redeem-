@@ -277,7 +277,6 @@ historyLayout.Parent = historyFrame
 
 local function ecrireBrut(texte) end -- déclarée plus bas, référencée ici pour l'historique (pas de verrou : écrit toujours à la suite)
 local function ecrireTexte(texte) end -- déclarée plus bas, utilisée par la détection automatique
-local function remplacerTexte(texte) end -- déclarée plus bas, référencée ici pour l'historique
 
 local function viderHistoriqueUI()
     for _, enfant in ipairs(historyFrame:GetChildren()) do
@@ -316,7 +315,7 @@ local function rafraichirHistoriqueUI()
         corner.Parent = entree
 
         local labelTexte = Instance.new("TextLabel")
-        labelTexte.Size = UDim2.new(1, -72, 1, 0)
+        labelTexte.Size = UDim2.new(1, -42, 1, 0)
         labelTexte.Position = UDim2.new(0, 8, 0, 0)
         labelTexte.BackgroundTransparency = 1
         labelTexte.TextColor3 = Color3.fromRGB(0, 220, 255)
@@ -347,9 +346,8 @@ local function rafraichirHistoriqueUI()
             return bouton
         end
 
-        -- "+" ajoute à la suite du contenu actuel, "⟳" remplace tout le contenu par ce mot
-        local ajouterBtn = creerBoutonEntree("+", -60, Color3.fromRGB(40, 130, 80))
-        local remplacerBtn = creerBoutonEntree("⟳", -30, Color3.fromRGB(190, 110, 40))
+        -- Ajoute le mot à la suite du contenu actuel de la boîte de code
+        local ajouterBtn = creerBoutonEntree("+", -30, Color3.fromRGB(40, 130, 80))
 
         local function flashCouleur(bouton, couleurBase, couleurFlash)
             TweenService:Create(bouton, TweenInfo.new(0.12), {BackgroundColor3 = couleurFlash}):Play()
@@ -360,11 +358,6 @@ local function rafraichirHistoriqueUI()
         ajouterBtn.MouseButton1Click:Connect(function()
             ecrireBrut(texte)
             flashCouleur(ajouterBtn, Color3.fromRGB(40, 130, 80), Color3.fromRGB(46, 204, 113))
-        end)
-
-        remplacerBtn.MouseButton1Click:Connect(function()
-            remplacerTexte(texte)
-            flashCouleur(remplacerBtn, Color3.fromRGB(190, 110, 40), Color3.fromRGB(255, 170, 60))
         end)
     end
 end
@@ -536,33 +529,24 @@ local function surveillerBoiteCode(boiteCode)
     end)
 end
 
--- Écrit dans la boîte de code, en ajoutant à la suite ou en remplaçant tout selon `remplacer`.
--- Pas de verrou ni d'auto-submit : utilisée par les clics manuels sur l'historique, qui
--- doivent toujours s'appliquer immédiatement même juste après une écriture automatique.
-local function ecrireDansBoite(texte, remplacer)
+-- Écrit toujours à la suite du contenu déjà présent, sans verrou ni auto-submit.
+-- Utilisée par les clics manuels sur l'historique : chaque clic doit s'ajouter
+-- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
+ecrireBrut = function(texte)
     if texte == "" then return nil end
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         surveillerBoiteCode(boiteCode)
         boiteCode:CaptureFocus()
-        if remplacer then
-            boiteCode.Text = texte
-            definirStatut('Remplacé par "' .. texte .. '"')
-        else
-            boiteCode.Text = (boiteCode.Text or "") .. texte
-            definirStatut('Ajouté "' .. texte .. '"')
-        end
+        boiteCode.Text = (boiteCode.Text or "") .. texte
+        definirStatut('Écrit "' .. texte .. '"')
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
-            if remplacer then
-                cibleEcriture.Text = texte
-            else
-                cibleEcriture.Text = cibleEcriture.Text .. texte
-            end
+            cibleEcriture.Text = cibleEcriture.Text .. texte
         end
     end
 
@@ -571,14 +555,6 @@ local function ecrireDansBoite(texte, remplacer)
     end)
 
     return boiteCode
-end
-
-ecrireBrut = function(texte)
-    return ecrireDansBoite(texte, false)
-end
-
-remplacerTexte = function(texte)
-    return ecrireDansBoite(texte, true)
 end
 
 -- Utilisée par la détection automatique : écrit puis gère le compteur/seuil d'auto-submit.
