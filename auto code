@@ -505,7 +505,7 @@ ecrireTexte = function(texte)
     if boiteCode and autoSubmitActif then
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
-            task.wait(0.05) -- compromis vitesse/fiabilité : laisse le temps au jeu de traiter le texte avant Submit
+            task.wait(0.15) -- délai avant Submit, ajusté pour plus de fiabilité
             soumettreCode(boiteCode)
             compteurDepuisSoumission = 0
         end
