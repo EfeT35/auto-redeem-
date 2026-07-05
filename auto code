@@ -339,7 +339,14 @@ local function trouverBoutonSubmit()
         end
     end
 
-    warn("[AutoCopier] Aucun bouton contenant 'submit' trouvé sous playerGui.Codes")
+    -- Rien ne matche "submit" : on liste tout ce qu'on a trouvé pour identifier le vrai bouton.
+    warn("[AutoCopier] Aucun bouton 'submit' trouvé, voici tous les boutons sous playerGui.Codes :")
+    for _, objet in ipairs(codesGui:GetDescendants()) do
+        if objet:IsA("GuiButton") then
+            local texteAffiche = objet:IsA("TextButton") and objet.Text or "(ImageButton, pas de texte)"
+            print("  -> " .. objet:GetFullName() .. "  [" .. objet.ClassName .. "]  Text=" .. tostring(texteAffiche))
+        end
+    end
     return nil
 end
 
