@@ -305,73 +305,45 @@ local scriptActive = true
 local enEcriture = false -- garde-fou anti boucle infinie (écriture -> détection -> écriture...)
 local connexions = {}
 
--- Trouve la boîte de saisie du code via son vrai chemin dans PlayerGui.Codes.
+-- Trouve le frame CodeRedeem (contient la TextBox + le bouton Submit) via son vrai chemin.
 -- FindFirstChild à chaque étape pour ne jamais planter si la fenêtre Codes n'est pas ouverte.
-local function trouverBoiteCode()
+local function trouverFrameCodeRedeem()
     local codesGui = playerGui:FindFirstChild("Codes")
     if not codesGui then return nil end
 
     local inner = codesGui:FindFirstChild("Codes")
     if not inner then return nil end
 
-    local redeem = inner:FindFirstChild("CodeRedeem")
+    return inner:FindFirstChild("CodeRedeem")
+end
+
+local function trouverBoiteCode()
+    local redeem = trouverFrameCodeRedeem()
     if not redeem then return nil end
 
     return redeem:FindFirstChild("TextBox")
 end
 
--- Cherche le bouton Submit n'importe où dans la fenêtre Codes (par nom ou par texte affiché).
--- GuiButton couvre à la fois TextButton ET ImageButton (le bouton vert peut être une image avec un texte enfant).
-local function trouverBoutonSubmit()
-    local codesGui = playerGui:FindFirstChild("Codes")
-    if not codesGui then
-        warn("[AutoCopier] playerGui.Codes introuvable (la fenêtre Codes n'a jamais été créée)")
-        return nil
+-- Le seul autre bouton présent dans CodeRedeem est celui de Submit : pas besoin de deviner
+-- son nom, on prend le premier TextButton/ImageButton trouvé et on déclenche son Activated.
+local function soumettreCode()
+    local redeem = trouverFrameCodeRedeem()
+    if not redeem then
+        warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre")
+        return
     end
 
-    for _, objet in ipairs(codesGui:GetDescendants()) do
-        if objet:IsA("GuiButton") then
-            local texteAffiche = objet:IsA("TextButton") and objet.Text or ""
-            local indice = objet.Name .. " " .. texteAffiche
-            if indice:lower():find("submit") then
-                return objet
+    for _, objet in ipairs(redeem:GetDescendants()) do
+        if objet:IsA("TextButton") or objet:IsA("ImageButton") then
+            local ok, connexionsBouton = pcall(getconnections, objet.Activated)
+            if ok and connexionsBouton and #connexionsBouton > 0 then
+                connexionsBouton[1]:Fire()
+                return
             end
         end
     end
 
-    -- Rien ne matche "submit" : on liste tout ce qu'on a trouvé pour identifier le vrai bouton.
-    warn("[AutoCopier] Aucun bouton 'submit' trouvé, voici tous les boutons sous playerGui.Codes :")
-    for _, objet in ipairs(codesGui:GetDescendants()) do
-        if objet:IsA("GuiButton") then
-            local texteAffiche = objet:IsA("TextButton") and objet.Text or "(ImageButton, pas de texte)"
-            print("  -> " .. objet:GetFullName() .. "  [" .. objet.ClassName .. "]  Text=" .. tostring(texteAffiche))
-        end
-    end
-    return nil
-end
-
--- Déclenche le clic du bouton Submit sans intervention de la souris (via getconnections, comme un vrai clic).
-local function soumettreCode()
-    local bouton = trouverBoutonSubmit()
-    if not bouton then return end
-
-    if not getconnections then
-        warn("[AutoCopier] getconnections n'existe pas dans cet executor, impossible de cliquer Submit automatiquement")
-        return
-    end
-
-    local ok, connexionsBouton = pcall(getconnections, bouton.Activated)
-    if not ok or not connexionsBouton or #connexionsBouton == 0 then
-        ok, connexionsBouton = pcall(getconnections, bouton.MouseButton1Click)
-    end
-
-    if ok and connexionsBouton and #connexionsBouton > 0 then
-        for _, conn in ipairs(connexionsBouton) do
-            conn:Fire()
-        end
-    else
-        warn("[AutoCopier] Bouton Submit trouvé (" .. bouton:GetFullName() .. ") mais aucune connexion à déclencher")
-    end
+    warn("[AutoCopier] Aucun bouton avec une connexion Activated trouvé sous CodeRedeem")
 end
 
 ecrireTexte = function(texte)
@@ -385,6 +357,7 @@ ecrireTexte = function(texte)
 
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
+            task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
             soumettreCode()
             compteurDepuisSoumission = 0
         end
