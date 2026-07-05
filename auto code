@@ -18,7 +18,7 @@ screenGui.ResetOnSpawn = false
 
 -- Le conteneur principal (déplaçable, se redimensionne pour l'historique)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 65)
+mainFrame.Size = UDim2.new(0, 320, 0, 95)
 mainFrame.Position = UDim2.new(0.5, -160, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BackgroundTransparency = 0.1
@@ -57,6 +57,60 @@ statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Text = "Mode : OFF (Touche B)"
 statusLabel.Parent = mainFrame
+
+-- ==========================================
+-- RÉGLAGE : SOUMETTRE APRÈS COMBIEN DE TEXTES DÉTECTÉS
+-- ==========================================
+local seuilSoumission = 1
+local compteurDepuisSoumission = 0
+
+local seuilLabel = Instance.new("TextLabel")
+seuilLabel.Size = UDim2.new(0, 210, 0, 22)
+seuilLabel.Position = UDim2.new(0, 42, 0, 58)
+seuilLabel.BackgroundTransparency = 1
+seuilLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+seuilLabel.TextSize = 12
+seuilLabel.Font = Enum.Font.Gotham
+seuilLabel.TextXAlignment = Enum.TextXAlignment.Left
+seuilLabel.Parent = mainFrame
+
+local function mettreAJourSeuilLabel()
+    seuilLabel.Text = "Auto-submit après " .. seuilSoumission .. " texte(s)"
+end
+mettreAJourSeuilLabel()
+
+local function creerBoutonSeuil(texte, offsetX)
+    local bouton = Instance.new("TextButton")
+    bouton.Size = UDim2.new(0, 22, 0, 22)
+    bouton.Position = UDim2.new(0, offsetX, 0, 58)
+    bouton.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+    bouton.BackgroundTransparency = 0.75
+    bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    bouton.TextSize = 14
+    bouton.Font = Enum.Font.GothamBold
+    bouton.Text = texte
+    bouton.AutoButtonColor = false
+    bouton.Parent = mainFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = bouton
+
+    return bouton
+end
+
+local seuilMoinsBtn = creerBoutonSeuil("-", 15)
+local seuilPlusBtn = creerBoutonSeuil("+", 257)
+
+seuilMoinsBtn.MouseButton1Click:Connect(function()
+    seuilSoumission = math.max(1, seuilSoumission - 1)
+    mettreAJourSeuilLabel()
+end)
+
+seuilPlusBtn.MouseButton1Click:Connect(function()
+    seuilSoumission = math.min(20, seuilSoumission + 1)
+    mettreAJourSeuilLabel()
+end)
 
 -- ==========================================
 -- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche)
@@ -100,7 +154,7 @@ local historique = {}
 local historiqueOuvert = false
 
 local historyFrame = Instance.new("ScrollingFrame")
-historyFrame.Position = UDim2.new(0, 10, 0, 65)
+historyFrame.Position = UDim2.new(0, 10, 0, 95)
 historyFrame.Size = UDim2.new(1, -20, 0, 140)
 historyFrame.BackgroundTransparency = 1
 historyFrame.BorderSizePixel = 0
@@ -181,7 +235,7 @@ end
 historyButton.MouseButton1Click:Connect(function()
     historiqueOuvert = not historiqueOuvert
 
-    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 215) or UDim2.new(0, 320, 0, 65)
+    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 245) or UDim2.new(0, 320, 0, 95)
     TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
 
     if historiqueOuvert then
@@ -266,6 +320,40 @@ local function trouverBoiteCode()
     return redeem:FindFirstChild("TextBox")
 end
 
+-- Cherche le bouton Submit n'importe où dans la fenêtre Codes (par nom ou par texte affiché).
+local function trouverBoutonSubmit()
+    local codesGui = playerGui:FindFirstChild("Codes")
+    if not codesGui then return nil end
+
+    for _, objet in ipairs(codesGui:GetDescendants()) do
+        if objet:IsA("TextButton") then
+            local indice = objet.Name .. " " .. tostring(objet.Text)
+            if indice:lower():find("submit") then
+                return objet
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Déclenche le clic du bouton Submit sans intervention de la souris (via getconnections, comme un vrai clic).
+local function soumettreCode()
+    local bouton = trouverBoutonSubmit()
+    if not bouton then return end
+
+    local ok, connexionsBouton = pcall(getconnections, bouton.Activated)
+    if not ok or not connexionsBouton or #connexionsBouton == 0 then
+        ok, connexionsBouton = pcall(getconnections, bouton.MouseButton1Click)
+    end
+
+    if ok and connexionsBouton then
+        for _, conn in ipairs(connexionsBouton) do
+            conn:Fire()
+        end
+    end
+end
+
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
@@ -274,6 +362,12 @@ ecrireTexte = function(texte)
     if boiteCode then
         boiteCode:CaptureFocus()
         boiteCode.Text = (boiteCode.Text or "") .. texte
+
+        compteurDepuisSoumission = compteurDepuisSoumission + 1
+        if compteurDepuisSoumission >= seuilSoumission then
+            soumettreCode()
+            compteurDepuisSoumission = 0
+        end
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         local cibleEcriture = UserInputService:GetFocusedTextBox()
