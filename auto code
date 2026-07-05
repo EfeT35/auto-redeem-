@@ -1,0 +1,216 @@
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- 1. TON CHEMIN (Le conteneur principal)
+local topNotifContainer = playerGui:WaitForChild("TopNotification")
+
+-- ==========================================
+-- CRÉATION DU NOUVEAU GUI (DESIGN MODERNE)
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoCopierSystemPro"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+
+-- Le conteneur principal (déplaçable)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 260, 0, 65)
+mainFrame.Position = UDim2.new(0.5, -130, 0, 20)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.Parent = screenGui
+
+local uiCornerMain = Instance.new("UICorner")
+uiCornerMain.CornerRadius = UDim.new(0, 12)
+uiCornerMain.Parent = mainFrame
+
+local uiStrokeMain = Instance.new("UIStroke")
+uiStrokeMain.Thickness = 2
+uiStrokeMain.Color = Color3.fromRGB(231, 76, 60) -- Commence en rouge
+uiStrokeMain.Parent = mainFrame
+
+-- Titre
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -50, 0, 20)
+titleLabel.Position = UDim2.new(0, 15, 0, 8)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Text = "⚡ AUTO-COPIER V2"
+titleLabel.Parent = mainFrame
+
+-- Statut (ON/OFF)
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -50, 0, 25)
+statusLabel.Position = UDim2.new(0, 15, 0, 30)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60) -- Commence en rouge
+statusLabel.TextSize = 18
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Text = "Mode : OFF (Touche B)"
+statusLabel.Parent = mainFrame
+
+-- BOUTON DE FERMETURE (LA CROIX)
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -40, 0.5, -15)
+closeButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+closeButton.BackgroundTransparency = 0.8
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 16
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Text = "X"
+closeButton.Parent = mainFrame
+
+local uiCornerClose = Instance.new("UICorner")
+uiCornerClose.CornerRadius = UDim.new(0, 8)
+uiCornerClose.Parent = closeButton
+
+-- ==========================================
+-- SYSTÈME POUR DÉPLACER LE MENU (DRAGGABLE)
+-- ==========================================
+local dragging, dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==========================================
+-- EFFETS VISUELS & ANIMATIONS
+-- ==========================================
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- Animation bouton fermer (Hover)
+closeButton.MouseEnter:Connect(function()
+    TweenService:Create(closeButton, tweenInfo, {BackgroundTransparency = 0.2}):Play()
+end)
+closeButton.MouseLeave:Connect(function()
+    TweenService:Create(closeButton, tweenInfo, {BackgroundTransparency = 0.8}):Play()
+end)
+
+local function updateInterface(isActive)
+    local targetColor = isActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    local targetText = isActive and "Mode : ON (Touche B)" or "Mode : OFF (Touche B)"
+    
+    statusLabel.Text = targetText
+    TweenService:Create(uiStrokeMain, tweenInfo, {Color = targetColor}):Play()
+    TweenService:Create(statusLabel, tweenInfo, {TextColor3 = targetColor}):Play()
+end
+
+-- ==========================================
+-- SYSTÈME DE DÉTECTION INSTANTANÉE (LOGIQUE)
+-- ==========================================
+local autoMode = false
+local scriptActive = true
+local connexions = {}
+
+local function copierEtEcrire(texte)
+    if not autoMode or texte == "" then return end
+    
+    local cibleEcriture = UserInputService:GetFocusedTextBox()
+    if cibleEcriture then
+        cibleEcriture.Text = cibleEcriture.Text .. texte
+    end
+    
+    pcall(function()
+        if setclipboard then setclipboard(texte) end
+    end)
+end
+
+local function brancherDetecteur(objet)
+    if objet:IsA("TextLabel") or objet:IsA("TextBox") then
+        local connection = objet:GetPropertyChangedSignal("Text"):Connect(function()
+            copierEtEcrire(objet.Text)
+        end)
+        table.insert(connexions, connection)
+        
+        if objet.Text ~= "" then
+            copierEtEcrire(objet.Text)
+        end
+    end
+end
+
+for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
+    brancherDetecteur(enfant)
+end
+brancherDetecteur(topNotifContainer)
+
+local childConnection = topNotifContainer.DescendantAdded:Connect(function(nouveauDescendant)
+    brancherDetecteur(nouveauDescendant)
+end)
+table.insert(connexions, childConnection)
+
+-- ==========================================
+-- INTERRUPTEUR (TOUCHE B)
+-- ==========================================
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent or not scriptActive then return end
+    
+    if input.KeyCode == Enum.KeyCode.B then
+        autoMode = not autoMode
+        updateInterface(autoMode)
+        
+        if autoMode then
+            for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
+                if (enfant:IsA("TextLabel") or enfant:IsA("TextBox")) and enfant.Text ~= "" then
+                    copierEtEcrire(enfant.Text)
+                    break
+                end
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- FERMETURE PROPRE (CLIC SUR X)
+-- ==========================================
+closeButton.MouseButton1Click:Connect(function()
+    autoMode = false
+    scriptActive = false
+    
+    for _, con in ipairs(connexions) do
+        if con then con:Disconnect() end
+    end
+    
+    -- Petite animation avant de se détruire
+    local fadeOut = TweenService:Create(mainFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1})
+    TweenService:Create(uiStrokeMain, TweenInfo.new(0.2), {Transparency = 1}):Play()
+    TweenService:Create(titleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(statusLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    
+    fadeOut:Play()
+    fadeOut.Completed:Wait()
+    
+    screenGui:Destroy()
+end)
