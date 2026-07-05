@@ -12,16 +12,17 @@ local topNotifContainer = playerGui:WaitForChild("TopNotification")
 -- CRÉATION DU NOUVEAU GUI (DESIGN MODERNE)
 -- ==========================================
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoCopierSystemPro"
+screenGui.Name = "ChopperAutoCode"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
 -- Le conteneur principal (déplaçable, se redimensionne pour l'historique)
+-- Style "menu d'actions" empilées, inspiré de XenHub V5
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 156)
-mainFrame.Position = UDim2.new(0.5, -160, 0, 20)
-mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-mainFrame.BackgroundTransparency = 0.1
+mainFrame.Size = UDim2.new(0, 300, 0, 346)
+mainFrame.Position = UDim2.new(0.5, -150, 0, 20)
+mainFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+mainFrame.BackgroundTransparency = 0.05
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
@@ -35,112 +36,96 @@ uiStrokeMain.Transparency = 0.4
 uiStrokeMain.Color = Color3.fromRGB(231, 76, 60) -- rouge = OFF, vert = ON (mis à jour dynamiquement)
 uiStrokeMain.Parent = mainFrame
 
--- Bandeau supérieur : pastille + titre, thème sombre/cyan
-local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 30)
-header.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
-header.BackgroundTransparency = 0.85
-header.BorderSizePixel = 0
-header.Parent = mainFrame
-
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 12)
-headerCorner.Parent = header
-
-local dot = Instance.new("Frame")
-dot.Size = UDim2.new(0, 7, 0, 7)
-dot.Position = UDim2.new(0, 12, 0.5, -3)
-dot.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
-dot.BorderSizePixel = 0
-dot.Parent = header
-
-local dotCorner = Instance.new("UICorner")
-dotCorner.CornerRadius = UDim.new(1, 0)
-dotCorner.Parent = dot
-
--- Titre
+-- En-tête centré : titre + sous-titre "Actions", séparés par une fine ligne
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -100, 1, 0)
-titleLabel.Position = UDim2.new(0, 24, 0, 0)
+titleLabel.Size = UDim2.new(1, -20, 0, 20)
+titleLabel.Position = UDim2.new(0, 10, 0, 10)
 titleLabel.BackgroundTransparency = 1
 titleLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
-titleLabel.TextSize = 12
+titleLabel.TextSize = 15
 titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Text = "⚡ AUTO-COPIER V2"
-titleLabel.Parent = header
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.Text = "⚡ CHOPPER AUTO CODE"
+titleLabel.Parent = mainFrame
+
+local subtitleLabel = Instance.new("TextLabel")
+subtitleLabel.Size = UDim2.new(1, -20, 0, 14)
+subtitleLabel.Position = UDim2.new(0, 10, 0, 30)
+subtitleLabel.BackgroundTransparency = 1
+subtitleLabel.TextColor3 = Color3.fromRGB(140, 140, 150)
+subtitleLabel.TextSize = 11
+subtitleLabel.Font = Enum.Font.Gotham
+subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+subtitleLabel.Text = "Actions"
+subtitleLabel.Parent = mainFrame
+
+local diviseur = Instance.new("Frame")
+diviseur.Size = UDim2.new(1, -20, 0, 1)
+diviseur.Position = UDim2.new(0, 10, 0, 48)
+diviseur.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+diviseur.BorderSizePixel = 0
+diviseur.Parent = mainFrame
 
 -- ==========================================
--- LIGNES DE RÉGLAGE (label à gauche, contrôle à droite), inspiré de Swave Hub
+-- BOUTONS D'ACTION EMPILÉS (pleine largeur), inspiré de XenHub V5
 -- ==========================================
-local function creerLabelLigne(texte, yPos, largeur, taillePolice)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, largeur or 140, 0, 24)
-    label.Position = UDim2.new(0, 15, 0, yPos)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(190, 190, 200)
-    label.TextSize = taillePolice or 12
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Text = texte
-    label.Parent = mainFrame
-    return label
+local COULEUR_NEUTRE = Color3.fromRGB(30, 30, 38)
+local COULEUR_ACCENT = Color3.fromRGB(0, 120, 215)
+local COULEUR_DANGER = Color3.fromRGB(192, 57, 43)
+
+-- Léger éclaircissement au survol, indépendant de la couleur de fond du bouton
+local function ajouterSurvol(bouton)
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.new(1, 0, 1, 0)
+    overlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    overlay.BackgroundTransparency = 1
+    overlay.BorderSizePixel = 0
+    overlay.Parent = bouton
+
+    local overlayCorner = Instance.new("UICorner")
+    overlayCorner.CornerRadius = UDim.new(0, 8)
+    overlayCorner.Parent = overlay
+
+    bouton.MouseEnter:Connect(function()
+        TweenService:Create(overlay, TweenInfo.new(0.15), {BackgroundTransparency = 0.92}):Play()
+    end)
+    bouton.MouseLeave:Connect(function()
+        TweenService:Create(overlay, TweenInfo.new(0.15), {BackgroundTransparency = 1}):Play()
+    end)
 end
 
-local function surlignerSegment(bouton, actif, couleurActif)
-    bouton.BackgroundColor3 = actif and couleurActif or Color3.fromRGB(40, 40, 50)
-    bouton.TextColor3 = actif and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 170)
-end
-
--- Ligne 1 : Monitoring (START / STOP) — la touche rebindable reste un raccourci alternatif
-local function creerBoutonSegment(texte, xPos, yPos, largeur)
+local function creerBoutonAction(texte, yPos, couleurFond, couleurTexte)
     local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, largeur, 0, 24)
-    bouton.Position = UDim2.new(0, xPos, 0, yPos)
-    bouton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    bouton.Size = UDim2.new(1, -20, 0, 34)
+    bouton.Position = UDim2.new(0, 10, 0, yPos)
+    bouton.BackgroundColor3 = couleurFond
     bouton.BorderSizePixel = 0
-    bouton.TextColor3 = Color3.fromRGB(160, 160, 170)
-    bouton.TextSize = 12
+    bouton.TextColor3 = couleurTexte
+    bouton.TextSize = 13
     bouton.Font = Enum.Font.GothamBold
     bouton.Text = texte
     bouton.AutoButtonColor = false
     bouton.Parent = mainFrame
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = bouton
+
+    ajouterSurvol(bouton)
 
     return bouton
 end
 
-local monitoringLabel = creerLabelLigne("Monitoring :", 38, 110)
-local startBtn = creerBoutonSegment("START", 165, 38, 68)
-local stopBtn = creerBoutonSegment("STOP", 237, 38, 68)
+-- Ligne 1 : Monitoring (toggle unique, la couleur du texte indique l'état ON/OFF)
+local monitoringBtn = creerBoutonAction("MONITORING : OFF (Touche B)", 58, COULEUR_NEUTRE, Color3.fromRGB(231, 76, 60))
 
 -- Ligne 2 : Auto-Submit ON/OFF (indépendant du seuil : coupe totalement la soumission auto)
-creerLabelLigne("Auto-Submit :", 66, 110)
-
-local autoSubmitToggle = Instance.new("TextButton")
-autoSubmitToggle.Size = UDim2.new(0, 66, 0, 24)
-autoSubmitToggle.Position = UDim2.new(0, 239, 0, 66)
-autoSubmitToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
-autoSubmitToggle.BorderSizePixel = 0
-autoSubmitToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoSubmitToggle.TextSize = 12
-autoSubmitToggle.Font = Enum.Font.GothamBold
-autoSubmitToggle.Text = "ON"
-autoSubmitToggle.AutoButtonColor = false
-autoSubmitToggle.Parent = mainFrame
-
-local autoSubmitCorner = Instance.new("UICorner")
-autoSubmitCorner.CornerRadius = UDim.new(0, 6)
-autoSubmitCorner.Parent = autoSubmitToggle
-
+local autoSubmitToggle = creerBoutonAction("AUTO-SUBMIT : ON", 100, COULEUR_NEUTRE, Color3.fromRGB(0, 160, 255))
 local autoSubmitActif = true
 
 local function actualiserAutoSubmitToggle()
-    surlignerSegment(autoSubmitToggle, autoSubmitActif, Color3.fromRGB(0, 140, 255))
-    autoSubmitToggle.Text = autoSubmitActif and "ON" or "OFF"
+    autoSubmitToggle.Text = "AUTO-SUBMIT : " .. (autoSubmitActif and "ON" or "OFF")
+    autoSubmitToggle.TextColor3 = autoSubmitActif and Color3.fromRGB(0, 160, 255) or Color3.fromRGB(140, 140, 150)
 end
 actualiserAutoSubmitToggle()
 
@@ -149,50 +134,70 @@ autoSubmitToggle.MouseButton1Click:Connect(function()
     actualiserAutoSubmitToggle()
 end)
 
--- Ligne 3 : Submit après (#) — seuil de textes accumulés avant de déclencher Submit
+-- Ligne 3 : Submit après (#) — carte avec seuil ajustable, pas un bouton d'action classique
 local seuilSoumission = 1
 local compteurDepuisSoumission = 0
 
-creerLabelLigne("Submit après (#) :", 94, 150, 11)
+local submitAfterCard = Instance.new("Frame")
+submitAfterCard.Size = UDim2.new(1, -20, 0, 34)
+submitAfterCard.Position = UDim2.new(0, 10, 0, 142)
+submitAfterCard.BackgroundColor3 = COULEUR_NEUTRE
+submitAfterCard.BorderSizePixel = 0
+submitAfterCard.Parent = mainFrame
 
-local function creerBoutonSeuil(texte, offsetX)
+local submitAfterCorner = Instance.new("UICorner")
+submitAfterCorner.CornerRadius = UDim.new(0, 8)
+submitAfterCorner.Parent = submitAfterCard
+
+local seuilTitleLabel = Instance.new("TextLabel")
+seuilTitleLabel.Size = UDim2.new(1, -110, 1, 0)
+seuilTitleLabel.Position = UDim2.new(0, 12, 0, 0)
+seuilTitleLabel.BackgroundTransparency = 1
+seuilTitleLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
+seuilTitleLabel.TextSize = 12
+seuilTitleLabel.Font = Enum.Font.GothamBold
+seuilTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+seuilTitleLabel.Text = "SUBMIT APRÈS (#)"
+seuilTitleLabel.Parent = submitAfterCard
+
+local function creerBoutonSeuil(texte, xOffsetDepuisDroite)
     local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, 20, 0, 22)
-    bouton.Position = UDim2.new(0, offsetX, 0, 94)
-    bouton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    bouton.Size = UDim2.new(0, 22, 0, 22)
+    bouton.Position = UDim2.new(1, xOffsetDepuisDroite, 0.5, -11)
+    bouton.BackgroundColor3 = Color3.fromRGB(50, 50, 62)
     bouton.BorderSizePixel = 0
-    bouton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    bouton.TextColor3 = Color3.fromRGB(210, 210, 215)
     bouton.TextSize = 14
     bouton.Font = Enum.Font.GothamBold
     bouton.Text = texte
     bouton.AutoButtonColor = false
-    bouton.Parent = mainFrame
+    bouton.Parent = submitAfterCard
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 4)
+    corner.CornerRadius = UDim.new(0, 5)
     corner.Parent = bouton
 
     return bouton
 end
 
-local seuilMoinsBtn = creerBoutonSeuil("-", 225)
+local seuilMoinsBtn = creerBoutonSeuil("-", -92)
 
 local seuilLabel = Instance.new("TextLabel")
-seuilLabel.Size = UDim2.new(0, 24, 0, 22)
-seuilLabel.Position = UDim2.new(0, 247, 0, 94)
-seuilLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+seuilLabel.Size = UDim2.new(0, 26, 0, 26)
+seuilLabel.Position = UDim2.new(1, -62, 0.5, -13)
+seuilLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 seuilLabel.BorderSizePixel = 0
 seuilLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
 seuilLabel.TextSize = 13
 seuilLabel.Font = Enum.Font.GothamBold
 seuilLabel.TextXAlignment = Enum.TextXAlignment.Center
-seuilLabel.Parent = mainFrame
+seuilLabel.Parent = submitAfterCard
 
 local seuilLabelCorner = Instance.new("UICorner")
-seuilLabelCorner.CornerRadius = UDim.new(0, 4)
+seuilLabelCorner.CornerRadius = UDim.new(0, 5)
 seuilLabelCorner.Parent = seuilLabel
 
-local seuilPlusBtn = creerBoutonSeuil("+", 273)
+local seuilPlusBtn = creerBoutonSeuil("+", -32)
 
 local function mettreAJourSeuilLabel()
     seuilLabel.Text = tostring(seuilSoumission)
@@ -209,13 +214,22 @@ seuilPlusBtn.MouseButton1Click:Connect(function()
     mettreAJourSeuilLabel()
 end)
 
+-- Ligne 4 : Historique (accent bleu, comme "Settings" chez XenHub)
+local historyButton = creerBoutonAction("HISTORIQUE ▾", 184, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
+
+-- Ligne 5 : Touche rebindable
+local keybindButton = creerBoutonAction("TOUCHE : B", 226, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
+
+-- Ligne 6 : Fermer (rouge plein, comme "Reset" chez XenHub)
+local closeButton = creerBoutonAction("FERMER", 268, COULEUR_DANGER, Color3.fromRGB(255, 255, 255))
+
 -- ==========================================
--- BARRE DE STATUT (dernier événement, façon "Status: ..." de Swave Hub)
+-- BARRE DE STATUT (dernier événement)
 -- ==========================================
 local statusBar = Instance.new("Frame")
-statusBar.Size = UDim2.new(1, -30, 0, 26)
-statusBar.Position = UDim2.new(0, 15, 0, 122)
-statusBar.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+statusBar.Size = UDim2.new(1, -20, 0, 26)
+statusBar.Position = UDim2.new(0, 10, 0, 310)
+statusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 statusBar.BorderSizePixel = 0
 statusBar.Parent = mainFrame
 
@@ -240,40 +254,6 @@ local function definirStatut(texte)
 end
 
 -- ==========================================
--- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche), dans le bandeau
--- ==========================================
-local function creerBoutonIcone(texte, offsetX, couleur)
-    local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, 22, 0, 22)
-    bouton.Position = UDim2.new(1, offsetX, 0, 4)
-    bouton.BackgroundColor3 = couleur
-    bouton.BackgroundTransparency = 0.8
-    bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    bouton.TextSize = 12
-    bouton.Font = Enum.Font.GothamBold
-    bouton.Text = texte
-    bouton.AutoButtonColor = false
-    bouton.Parent = header
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = bouton
-
-    bouton.MouseEnter:Connect(function()
-        TweenService:Create(bouton, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
-    end)
-    bouton.MouseLeave:Connect(function()
-        TweenService:Create(bouton, TweenInfo.new(0.2), {BackgroundTransparency = 0.8}):Play()
-    end)
-
-    return bouton
-end
-
-local closeButton = creerBoutonIcone("X", -28, Color3.fromRGB(231, 76, 60))
-local historyButton = creerBoutonIcone("🕘", -54, Color3.fromRGB(52, 152, 219))
-local keybindButton = creerBoutonIcone("B", -80, Color3.fromRGB(155, 89, 182))
-
--- ==========================================
 -- PANNEAU HISTORIQUE (derniers textes copiés)
 -- ==========================================
 local MAX_HISTORIQUE = 8
@@ -281,7 +261,7 @@ local historique = {}
 local historiqueOuvert = false
 
 local historyFrame = Instance.new("ScrollingFrame")
-historyFrame.Position = UDim2.new(0, 10, 0, 156)
+historyFrame.Position = UDim2.new(0, 10, 0, 346)
 historyFrame.Size = UDim2.new(1, -20, 0, 140)
 historyFrame.BackgroundTransparency = 1
 historyFrame.BorderSizePixel = 0
@@ -364,8 +344,9 @@ end
 
 historyButton.MouseButton1Click:Connect(function()
     historiqueOuvert = not historiqueOuvert
+    historyButton.Text = historiqueOuvert and "HISTORIQUE ▴" or "HISTORIQUE ▾"
 
-    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 306) or UDim2.new(0, 320, 0, 156)
+    local targetSize = historiqueOuvert and UDim2.new(0, 300, 0, 496) or UDim2.new(0, 300, 0, 346)
     TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
 
     if historiqueOuvert then
@@ -421,12 +402,12 @@ local toggleKey = Enum.KeyCode.B
 local function updateInterface(isActive)
     local targetColor = isActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
 
-    surlignerSegment(startBtn, isActive, Color3.fromRGB(46, 204, 113))
-    surlignerSegment(stopBtn, not isActive, Color3.fromRGB(231, 76, 60))
+    monitoringBtn.Text = "MONITORING : " .. (isActive and "ON" or "OFF") .. " (Touche " .. toggleKey.Name .. ")"
+    monitoringBtn.TextColor3 = targetColor
     TweenService:Create(uiStrokeMain, tweenInfo, {Color = targetColor}):Play()
 end
 
-updateInterface(false) -- état initial : STOP surligné, monitoring inactif
+updateInterface(false) -- état initial : monitoring inactif
 
 -- ==========================================
 -- SYSTÈME DE DÉTECTION INSTANTANÉE (LOGIQUE)
@@ -539,7 +520,7 @@ local function copierEtEcrire(texte)
     ajouterHistorique(texte)
 end
 
--- Bascule partagée entre la touche rebindable et les boutons START/STOP
+-- Bascule partagée entre la touche rebindable et le bouton Monitoring
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
     compteurDepuisSoumission = 0 -- repart de zéro à chaque activation/désactivation du monitoring
@@ -555,8 +536,7 @@ local function activerAutoMode(nouvelEtat)
     end
 end
 
-startBtn.MouseButton1Click:Connect(function() activerAutoMode(true) end)
-stopBtn.MouseButton1Click:Connect(function() activerAutoMode(false) end)
+monitoringBtn.MouseButton1Click:Connect(function() activerAutoMode(not autoMode) end)
 
 local function brancherDetecteur(objet)
     if objet:IsA("TextLabel") or objet:IsA("TextBox") then
@@ -598,7 +578,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if enAttenteTouche then
         if input.UserInputType == Enum.UserInputType.Keyboard then
             toggleKey = input.KeyCode
-            keybindButton.Text = toggleKey.Name
+            keybindButton.Text = "TOUCHE : " .. toggleKey.Name
             enAttenteTouche = false
             updateInterface(autoMode)
             definirStatut("Touche changée : " .. toggleKey.Name)
@@ -630,9 +610,9 @@ closeButton.MouseButton1Click:Connect(function()
     -- Petite animation avant de se détruire
     local fadeOut = TweenService:Create(mainFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1})
     TweenService:Create(uiStrokeMain, TweenInfo.new(0.2), {Transparency = 1}):Play()
-    TweenService:Create(header, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     TweenService:Create(titleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(monitoringLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(subtitleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(monitoringBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
     TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
 
     fadeOut:Play()
