@@ -273,7 +273,7 @@ ecrireTexte = function(texte)
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         boiteCode:CaptureFocus()
-        boiteCode.Text = texte
+        boiteCode.Text = (boiteCode.Text or "") .. texte
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         local cibleEcriture = UserInputService:GetFocusedTextBox()
