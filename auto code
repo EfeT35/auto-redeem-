@@ -468,6 +468,34 @@ local function soumettreCode(boiteCode)
     end
 end
 
+-- Surveille la boîte de code : si son texte RACCOURCIT (le joueur a supprimé un mot
+-- manuellement), le compteur d'auto-submit repart à zéro puisqu'un mot compté n'y
+-- est plus. Nos propres écritures ne font qu'allonger le texte donc ne déclenchent
+-- jamais ce reset.
+local boiteCodeSurveillee = nil
+local dernierTexteConnu = ""
+local connexionTexteBox = nil
+
+local function surveillerBoiteCode(boiteCode)
+    if boiteCode == boiteCodeSurveillee then return end
+
+    if connexionTexteBox then
+        connexionTexteBox:Disconnect()
+    end
+
+    boiteCodeSurveillee = boiteCode
+    dernierTexteConnu = boiteCode.Text or ""
+
+    connexionTexteBox = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
+        local texteActuel = boiteCode.Text or ""
+        if #texteActuel < #dernierTexteConnu then
+            compteurDepuisSoumission = 0
+            definirStatut("Texte réduit manuellement, compteur de soumission remis à zéro")
+        end
+        dernierTexteConnu = texteActuel
+    end)
+end
+
 -- Écrit toujours à la suite du contenu déjà présent, sans verrou ni auto-submit.
 -- Utilisée par les clics manuels sur l'historique : chaque clic doit s'ajouter
 -- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
@@ -476,6 +504,7 @@ ecrireBrut = function(texte)
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
+        surveillerBoiteCode(boiteCode)
         boiteCode:CaptureFocus()
         boiteCode.Text = (boiteCode.Text or "") .. texte
         definirStatut('Écrit "' .. texte .. '"')
@@ -515,10 +544,15 @@ ecrireTexte = function(texte)
     enEcriture = false
 end
 
-local function copierEtEcrire(texte)
-    if not autoMode or texte == "" then return end
-    ecrireTexte(texte)
+-- Log TOUJOURS dans l'historique (peu importe l'état du monitoring),
+-- et ne copie/écrit dans la boîte que si le monitoring est actif.
+local function surTexteDetecte(texte)
+    if texte == "" then return end
     ajouterHistorique(texte)
+
+    if autoMode then
+        ecrireTexte(texte)
+    end
 end
 
 -- Bascule partagée entre la touche rebindable et le bouton Monitoring.
@@ -535,12 +569,12 @@ monitoringBtn.MouseButton1Click:Connect(function() activerAutoMode(not autoMode)
 local function brancherDetecteur(objet)
     if objet:IsA("TextLabel") or objet:IsA("TextBox") then
         local connection = objet:GetPropertyChangedSignal("Text"):Connect(function()
-            copierEtEcrire(objet.Text)
+            surTexteDetecte(objet.Text)
         end)
         table.insert(connexions, connection)
 
         if objet.Text ~= "" then
-            copierEtEcrire(objet.Text)
+            surTexteDetecte(objet.Text)
         end
     end
 end
