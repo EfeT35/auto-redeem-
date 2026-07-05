@@ -16,12 +16,13 @@ screenGui.Name = "AutoCopierSystemPro"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
--- Le conteneur principal (déplaçable)
+-- Le conteneur principal (déplaçable, se redimensionne pour l'historique)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 65)
-mainFrame.Position = UDim2.new(0.5, -130, 0, 20)
+mainFrame.Size = UDim2.new(0, 320, 0, 65)
+mainFrame.Position = UDim2.new(0.5, -160, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BackgroundTransparency = 0.1
+mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
 local uiCornerMain = Instance.new("UICorner")
@@ -35,7 +36,7 @@ uiStrokeMain.Parent = mainFrame
 
 -- Titre
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -50, 0, 20)
+titleLabel.Size = UDim2.new(1, -115, 0, 20)
 titleLabel.Position = UDim2.new(0, 15, 0, 8)
 titleLabel.BackgroundTransparency = 1
 titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -45,46 +46,168 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Text = "⚡ AUTO-COPIER V2"
 titleLabel.Parent = mainFrame
 
--- Statut (ON/OFF)
+-- Statut (ON/OFF), la touche s'affiche dynamiquement (rebindable)
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -50, 0, 25)
+statusLabel.Size = UDim2.new(1, -115, 0, 25)
 statusLabel.Position = UDim2.new(0, 15, 0, 30)
 statusLabel.BackgroundTransparency = 1
-statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60) -- Commence en rouge
-statusLabel.TextSize = 18
+statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
+statusLabel.TextSize = 16
 statusLabel.Font = Enum.Font.GothamMedium
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Text = "Mode : OFF (Touche B)"
 statusLabel.Parent = mainFrame
 
--- BOUTON DE FERMETURE (LA CROIX)
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -40, 0.5, -15)
-closeButton.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-closeButton.BackgroundTransparency = 0.8
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.TextSize = 16
-closeButton.Font = Enum.Font.GothamBold
-closeButton.Text = "X"
-closeButton.Parent = mainFrame
+-- ==========================================
+-- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche)
+-- ==========================================
+local function creerBoutonIcone(texte, offsetX, couleur)
+    local bouton = Instance.new("TextButton")
+    bouton.Size = UDim2.new(0, 28, 0, 28)
+    bouton.Position = UDim2.new(1, offsetX, 0, 18)
+    bouton.BackgroundColor3 = couleur
+    bouton.BackgroundTransparency = 0.8
+    bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    bouton.TextSize = 14
+    bouton.Font = Enum.Font.GothamBold
+    bouton.Text = texte
+    bouton.AutoButtonColor = false
+    bouton.Parent = mainFrame
 
-local uiCornerClose = Instance.new("UICorner")
-uiCornerClose.CornerRadius = UDim.new(0, 8)
-uiCornerClose.Parent = closeButton
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = bouton
+
+    bouton.MouseEnter:Connect(function()
+        TweenService:Create(bouton, TweenInfo.new(0.2), {BackgroundTransparency = 0.2}):Play()
+    end)
+    bouton.MouseLeave:Connect(function()
+        TweenService:Create(bouton, TweenInfo.new(0.2), {BackgroundTransparency = 0.8}):Play()
+    end)
+
+    return bouton
+end
+
+local closeButton = creerBoutonIcone("X", -40, Color3.fromRGB(231, 76, 60))
+local historyButton = creerBoutonIcone("🕘", -76, Color3.fromRGB(52, 152, 219))
+local keybindButton = creerBoutonIcone("B", -112, Color3.fromRGB(155, 89, 182))
+
+-- ==========================================
+-- PANNEAU HISTORIQUE (derniers textes copiés)
+-- ==========================================
+local MAX_HISTORIQUE = 8
+local historique = {}
+local historiqueOuvert = false
+
+local historyFrame = Instance.new("ScrollingFrame")
+historyFrame.Position = UDim2.new(0, 10, 0, 65)
+historyFrame.Size = UDim2.new(1, -20, 0, 140)
+historyFrame.BackgroundTransparency = 1
+historyFrame.BorderSizePixel = 0
+historyFrame.ScrollBarThickness = 4
+historyFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+historyFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+historyFrame.Parent = mainFrame
+
+local historyLayout = Instance.new("UIListLayout")
+historyLayout.Padding = UDim.new(0, 6)
+historyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+historyLayout.Parent = historyFrame
+
+local function ecrireTexte(texte) end -- déclarée plus bas, référencée ici pour l'historique
+
+local function viderHistoriqueUI()
+    for _, enfant in ipairs(historyFrame:GetChildren()) do
+        if enfant:IsA("TextButton") then
+            enfant:Destroy()
+        end
+    end
+end
+
+local function rafraichirHistoriqueUI()
+    viderHistoriqueUI()
+
+    if #historique == 0 then
+        local vide = Instance.new("TextLabel")
+        vide.Size = UDim2.new(1, 0, 0, 28)
+        vide.BackgroundTransparency = 1
+        vide.TextColor3 = Color3.fromRGB(120, 120, 120)
+        vide.TextSize = 13
+        vide.Font = Enum.Font.Gotham
+        vide.Text = "Aucun texte détecté pour le moment."
+        vide.Parent = historyFrame
+        return
+    end
+
+    for i, texte in ipairs(historique) do
+        local entree = Instance.new("TextButton")
+        entree.Size = UDim2.new(1, 0, 0, 28)
+        entree.LayoutOrder = i
+        entree.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+        entree.TextColor3 = Color3.fromRGB(220, 220, 220)
+        entree.TextSize = 13
+        entree.Font = Enum.Font.Gotham
+        entree.TextXAlignment = Enum.TextXAlignment.Left
+        entree.TextTruncate = Enum.TextTruncate.AtEnd
+        entree.Text = "  " .. texte
+        entree.Parent = historyFrame
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = entree
+
+        entree.MouseButton1Click:Connect(function()
+            ecrireTexte(texte)
+            TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(46, 204, 113)}):Play()
+            task.wait(0.15)
+            TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(35, 35, 42)}):Play()
+        end)
+    end
+end
+
+local function ajouterHistorique(texte)
+    if historique[1] == texte then return end -- évite les doublons consécutifs
+
+    table.insert(historique, 1, texte)
+    while #historique > MAX_HISTORIQUE do
+        table.remove(historique)
+    end
+
+    if historiqueOuvert then
+        rafraichirHistoriqueUI()
+    end
+end
+
+historyButton.MouseButton1Click:Connect(function()
+    historiqueOuvert = not historiqueOuvert
+
+    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 215) or UDim2.new(0, 320, 0, 65)
+    TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
+
+    if historiqueOuvert then
+        rafraichirHistoriqueUI()
+    end
+end)
+
+rafraichirHistoriqueUI()
 
 -- ==========================================
 -- SYSTÈME POUR DÉPLACER LE MENU (DRAGGABLE)
 -- ==========================================
 local dragging, dragInput, dragStart, startPos
+local dragEndConnection
 
 mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-        
-        input.Changed:Connect(function()
+
+        if dragEndConnection then
+            dragEndConnection:Disconnect()
+        end
+
+        dragEndConnection = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
             end
@@ -106,22 +229,15 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ==========================================
--- EFFETS VISUELS & ANIMATIONS
+-- INTERFACE : COULEUR / TEXTE SELON L'ÉTAT
 -- ==========================================
 local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
--- Animation bouton fermer (Hover)
-closeButton.MouseEnter:Connect(function()
-    TweenService:Create(closeButton, tweenInfo, {BackgroundTransparency = 0.2}):Play()
-end)
-closeButton.MouseLeave:Connect(function()
-    TweenService:Create(closeButton, tweenInfo, {BackgroundTransparency = 0.8}):Play()
-end)
+local toggleKey = Enum.KeyCode.B
 
 local function updateInterface(isActive)
     local targetColor = isActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-    local targetText = isActive and "Mode : ON (Touche B)" or "Mode : OFF (Touche B)"
-    
+    local targetText = (isActive and "Mode : ON" or "Mode : OFF") .. " (Touche " .. toggleKey.Name .. ")"
+
     statusLabel.Text = targetText
     TweenService:Create(uiStrokeMain, tweenInfo, {Color = targetColor}):Play()
     TweenService:Create(statusLabel, tweenInfo, {TextColor3 = targetColor}):Play()
@@ -132,19 +248,29 @@ end
 -- ==========================================
 local autoMode = false
 local scriptActive = true
+local enEcriture = false -- garde-fou anti boucle infinie (écriture -> détection -> écriture...)
 local connexions = {}
 
-local function copierEtEcrire(texte)
-    if not autoMode or texte == "" then return end
-    
+ecrireTexte = function(texte)
+    if enEcriture or texte == "" then return end
+    enEcriture = true
+
     local cibleEcriture = UserInputService:GetFocusedTextBox()
     if cibleEcriture then
         cibleEcriture.Text = cibleEcriture.Text .. texte
     end
-    
+
     pcall(function()
         if setclipboard then setclipboard(texte) end
     end)
+
+    enEcriture = false
+end
+
+local function copierEtEcrire(texte)
+    if not autoMode or texte == "" then return end
+    ecrireTexte(texte)
+    ajouterHistorique(texte)
 end
 
 local function brancherDetecteur(objet)
@@ -153,7 +279,7 @@ local function brancherDetecteur(objet)
             copierEtEcrire(objet.Text)
         end)
         table.insert(connexions, connection)
-        
+
         if objet.Text ~= "" then
             copierEtEcrire(objet.Text)
         end
@@ -171,15 +297,34 @@ end)
 table.insert(connexions, childConnection)
 
 -- ==========================================
--- INTERRUPTEUR (TOUCHE B)
+-- INTERRUPTEUR (TOUCHE REBINDABLE) + REBIND DEPUIS L'UI
 -- ==========================================
+local enAttenteTouche = false
+
+keybindButton.MouseButton1Click:Connect(function()
+    enAttenteTouche = true
+    keybindButton.Text = "..."
+end)
+
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent or not scriptActive then return end
-    
-    if input.KeyCode == Enum.KeyCode.B then
+    if not scriptActive then return end
+
+    if enAttenteTouche then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            toggleKey = input.KeyCode
+            keybindButton.Text = toggleKey.Name
+            enAttenteTouche = false
+            updateInterface(autoMode)
+        end
+        return
+    end
+
+    if gameProcessedEvent then return end
+
+    if input.KeyCode == toggleKey then
         autoMode = not autoMode
         updateInterface(autoMode)
-        
+
         if autoMode then
             for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
                 if (enfant:IsA("TextLabel") or enfant:IsA("TextBox")) and enfant.Text ~= "" then
@@ -197,20 +342,23 @@ end)
 closeButton.MouseButton1Click:Connect(function()
     autoMode = false
     scriptActive = false
-    
+
     for _, con in ipairs(connexions) do
         if con then con:Disconnect() end
     end
-    
+    if dragEndConnection then
+        dragEndConnection:Disconnect()
+    end
+
     -- Petite animation avant de se détruire
     local fadeOut = TweenService:Create(mainFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1})
     TweenService:Create(uiStrokeMain, TweenInfo.new(0.2), {Transparency = 1}):Play()
     TweenService:Create(titleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
     TweenService:Create(statusLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
     TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-    
+
     fadeOut:Play()
     fadeOut.Completed:Wait()
-    
+
     screenGui:Destroy()
 end)
