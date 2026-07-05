@@ -324,26 +324,33 @@ local function trouverBoiteCode()
     return redeem:FindFirstChild("TextBox")
 end
 
--- Le seul autre bouton présent dans CodeRedeem est celui de Submit : pas besoin de deviner
--- son nom, on prend le premier TextButton/ImageButton trouvé et on déclenche son Activated.
-local function soumettreCode()
+-- Essaie d'abord de déclencher le bouton Submit (premier TextButton/ImageButton avec une
+-- connexion Activated trouvé dans CodeRedeem). Si aucun n'a de connexion exploitable, on
+-- retombe sur ReleaseFocus(true) : ça simule un appui sur Entrée et déclenche le FocusLost(true)
+-- de la boîte, qui est souvent le vrai déclencheur de validation dans ce genre d'UI.
+local function soumettreCode(boiteCode)
     local redeem = trouverFrameCodeRedeem()
-    if not redeem then
-        warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre")
-        return
-    end
+    local soumis = false
 
-    for _, objet in ipairs(redeem:GetDescendants()) do
-        if objet:IsA("TextButton") or objet:IsA("ImageButton") then
-            local ok, connexionsBouton = pcall(getconnections, objet.Activated)
-            if ok and connexionsBouton and #connexionsBouton > 0 then
-                connexionsBouton[1]:Fire()
-                return
+    if redeem then
+        for _, objet in ipairs(redeem:GetDescendants()) do
+            if objet:IsA("TextButton") or objet:IsA("ImageButton") then
+                local ok, connexionsBouton = pcall(getconnections, objet.Activated)
+                if ok and connexionsBouton and #connexionsBouton > 0 then
+                    connexionsBouton[1]:Fire()
+                    soumis = true
+                    break
+                end
             end
         end
+    else
+        warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
     end
 
-    warn("[AutoCopier] Aucun bouton avec une connexion Activated trouvé sous CodeRedeem")
+    if not soumis and boiteCode then
+        warn("[AutoCopier] Pas de bouton exploitable, tentative via ReleaseFocus(true) (simule Entrée)")
+        boiteCode:ReleaseFocus(true)
+    end
 end
 
 ecrireTexte = function(texte)
@@ -358,7 +365,7 @@ ecrireTexte = function(texte)
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
             task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
-            soumettreCode()
+            soumettreCode(boiteCode)
             compteurDepuisSoumission = 0
         end
     else
