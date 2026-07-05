@@ -521,20 +521,13 @@ local function copierEtEcrire(texte)
     ajouterHistorique(texte)
 end
 
--- Bascule partagée entre la touche rebindable et le bouton Monitoring
+-- Bascule partagée entre la touche rebindable et le bouton Monitoring.
+-- N'attrape jamais un texte déjà présent au moment de l'activation : seuls les
+-- textes qui apparaissent/changent APRÈS l'activation doivent être copiés.
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
     compteurDepuisSoumission = 0 -- repart de zéro à chaque activation/désactivation du monitoring
     updateInterface(autoMode)
-
-    if autoMode then
-        for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
-            if (enfant:IsA("TextLabel") or enfant:IsA("TextBox")) and enfant.Text ~= "" then
-                copierEtEcrire(enfant.Text)
-                break
-            end
-        end
-    end
 end
 
 monitoringBtn.MouseButton1Click:Connect(function() activerAutoMode(not autoMode) end)
