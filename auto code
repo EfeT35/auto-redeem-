@@ -505,9 +505,10 @@ ecrireTexte = function(texte)
     if boiteCode and autoSubmitActif then
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
-            task.wait(0.15) -- délai avant Submit, ajusté pour plus de fiabilité
-            soumettreCode(boiteCode)
             compteurDepuisSoumission = 0
+            -- task.defer laisse juste passer les écouteurs Text déjà en file (comportement
+            -- "Deferred" des évènements Roblox) sans imposer de pause fixe : quasi instantané.
+            task.defer(soumettreCode, boiteCode)
         end
     end
 
