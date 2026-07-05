@@ -18,7 +18,7 @@ screenGui.ResetOnSpawn = false
 
 -- Le conteneur principal (déplaçable, se redimensionne pour l'historique)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 320, 0, 95)
+mainFrame.Size = UDim2.new(0, 320, 0, 156)
 mainFrame.Position = UDim2.new(0.5, -160, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
 mainFrame.BackgroundTransparency = 0.1
@@ -70,39 +70,95 @@ titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Text = "⚡ AUTO-COPIER V2"
 titleLabel.Parent = header
 
--- Statut (ON/OFF), la touche s'affiche dynamiquement (rebindable)
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -30, 0, 20)
-statusLabel.Position = UDim2.new(0, 15, 0, 36)
-statusLabel.BackgroundTransparency = 1
-statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
-statusLabel.TextSize = 13
-statusLabel.Font = Enum.Font.GothamBold
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Text = "Mode : OFF (Touche B)"
-statusLabel.Parent = mainFrame
+-- ==========================================
+-- LIGNES DE RÉGLAGE (label à gauche, contrôle à droite), inspiré de Swave Hub
+-- ==========================================
+local function creerLabelLigne(texte, yPos, largeur, taillePolice)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, largeur or 140, 0, 24)
+    label.Position = UDim2.new(0, 15, 0, yPos)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(190, 190, 200)
+    label.TextSize = taillePolice or 12
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Text = texte
+    label.Parent = mainFrame
+    return label
+end
 
--- ==========================================
--- RÉGLAGE : SOUMETTRE APRÈS COMBIEN DE TEXTES DÉTECTÉS
--- ==========================================
+local function surlignerSegment(bouton, actif, couleurActif)
+    bouton.BackgroundColor3 = actif and couleurActif or Color3.fromRGB(40, 40, 50)
+    bouton.TextColor3 = actif and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(160, 160, 170)
+end
+
+-- Ligne 1 : Monitoring (START / STOP) — la touche rebindable reste un raccourci alternatif
+local function creerBoutonSegment(texte, xPos, yPos, largeur)
+    local bouton = Instance.new("TextButton")
+    bouton.Size = UDim2.new(0, largeur, 0, 24)
+    bouton.Position = UDim2.new(0, xPos, 0, yPos)
+    bouton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    bouton.BorderSizePixel = 0
+    bouton.TextColor3 = Color3.fromRGB(160, 160, 170)
+    bouton.TextSize = 12
+    bouton.Font = Enum.Font.GothamBold
+    bouton.Text = texte
+    bouton.AutoButtonColor = false
+    bouton.Parent = mainFrame
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = bouton
+
+    return bouton
+end
+
+local monitoringLabel = creerLabelLigne("Monitoring :", 38, 110)
+local startBtn = creerBoutonSegment("START", 165, 38, 68)
+local stopBtn = creerBoutonSegment("STOP", 237, 38, 68)
+
+-- Ligne 2 : Auto-Submit ON/OFF (indépendant du seuil : coupe totalement la soumission auto)
+creerLabelLigne("Auto-Submit :", 66, 110)
+
+local autoSubmitToggle = Instance.new("TextButton")
+autoSubmitToggle.Size = UDim2.new(0, 66, 0, 24)
+autoSubmitToggle.Position = UDim2.new(0, 239, 0, 66)
+autoSubmitToggle.BackgroundColor3 = Color3.fromRGB(0, 140, 255)
+autoSubmitToggle.BorderSizePixel = 0
+autoSubmitToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoSubmitToggle.TextSize = 12
+autoSubmitToggle.Font = Enum.Font.GothamBold
+autoSubmitToggle.Text = "ON"
+autoSubmitToggle.AutoButtonColor = false
+autoSubmitToggle.Parent = mainFrame
+
+local autoSubmitCorner = Instance.new("UICorner")
+autoSubmitCorner.CornerRadius = UDim.new(0, 6)
+autoSubmitCorner.Parent = autoSubmitToggle
+
+local autoSubmitActif = true
+
+local function actualiserAutoSubmitToggle()
+    surlignerSegment(autoSubmitToggle, autoSubmitActif, Color3.fromRGB(0, 140, 255))
+    autoSubmitToggle.Text = autoSubmitActif and "ON" or "OFF"
+end
+actualiserAutoSubmitToggle()
+
+autoSubmitToggle.MouseButton1Click:Connect(function()
+    autoSubmitActif = not autoSubmitActif
+    actualiserAutoSubmitToggle()
+end)
+
+-- Ligne 3 : Submit après (#) — seuil de textes accumulés avant de déclencher Submit
 local seuilSoumission = 1
 local compteurDepuisSoumission = 0
 
-local seuilTitleLabel = Instance.new("TextLabel")
-seuilTitleLabel.Size = UDim2.new(0, 90, 0, 22)
-seuilTitleLabel.Position = UDim2.new(0, 15, 0, 60)
-seuilTitleLabel.BackgroundTransparency = 1
-seuilTitleLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
-seuilTitleLabel.TextSize = 10
-seuilTitleLabel.Font = Enum.Font.GothamBold
-seuilTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-seuilTitleLabel.Text = "AUTO-SUBMIT :"
-seuilTitleLabel.Parent = mainFrame
+creerLabelLigne("Submit après (#) :", 94, 150, 11)
 
 local function creerBoutonSeuil(texte, offsetX)
     local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, 22, 0, 22)
-    bouton.Position = UDim2.new(0, offsetX, 0, 60)
+    bouton.Size = UDim2.new(0, 20, 0, 22)
+    bouton.Position = UDim2.new(0, offsetX, 0, 94)
     bouton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
     bouton.BorderSizePixel = 0
     bouton.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -119,19 +175,24 @@ local function creerBoutonSeuil(texte, offsetX)
     return bouton
 end
 
-local seuilMoinsBtn = creerBoutonSeuil("-", 108)
+local seuilMoinsBtn = creerBoutonSeuil("-", 225)
 
 local seuilLabel = Instance.new("TextLabel")
-seuilLabel.Size = UDim2.new(0, 30, 0, 22)
-seuilLabel.Position = UDim2.new(0, 134, 0, 60)
-seuilLabel.BackgroundTransparency = 1
+seuilLabel.Size = UDim2.new(0, 24, 0, 22)
+seuilLabel.Position = UDim2.new(0, 247, 0, 94)
+seuilLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+seuilLabel.BorderSizePixel = 0
 seuilLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
 seuilLabel.TextSize = 13
 seuilLabel.Font = Enum.Font.GothamBold
 seuilLabel.TextXAlignment = Enum.TextXAlignment.Center
 seuilLabel.Parent = mainFrame
 
-local seuilPlusBtn = creerBoutonSeuil("+", 168)
+local seuilLabelCorner = Instance.new("UICorner")
+seuilLabelCorner.CornerRadius = UDim.new(0, 4)
+seuilLabelCorner.Parent = seuilLabel
+
+local seuilPlusBtn = creerBoutonSeuil("+", 273)
 
 local function mettreAJourSeuilLabel()
     seuilLabel.Text = tostring(seuilSoumission)
@@ -147,6 +208,36 @@ seuilPlusBtn.MouseButton1Click:Connect(function()
     seuilSoumission = math.min(20, seuilSoumission + 1)
     mettreAJourSeuilLabel()
 end)
+
+-- ==========================================
+-- BARRE DE STATUT (dernier événement, façon "Status: ..." de Swave Hub)
+-- ==========================================
+local statusBar = Instance.new("Frame")
+statusBar.Size = UDim2.new(1, -30, 0, 26)
+statusBar.Position = UDim2.new(0, 15, 0, 122)
+statusBar.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+statusBar.BorderSizePixel = 0
+statusBar.Parent = mainFrame
+
+local statusBarCorner = Instance.new("UICorner")
+statusBarCorner.CornerRadius = UDim.new(0, 6)
+statusBarCorner.Parent = statusBar
+
+local statusBarLabel = Instance.new("TextLabel")
+statusBarLabel.Size = UDim2.new(1, -16, 1, 0)
+statusBarLabel.Position = UDim2.new(0, 8, 0, 0)
+statusBarLabel.BackgroundTransparency = 1
+statusBarLabel.TextColor3 = Color3.fromRGB(150, 150, 160)
+statusBarLabel.TextSize = 11
+statusBarLabel.Font = Enum.Font.Gotham
+statusBarLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusBarLabel.TextTruncate = Enum.TextTruncate.AtEnd
+statusBarLabel.Text = "Statut : en attente..."
+statusBarLabel.Parent = statusBar
+
+local function definirStatut(texte)
+    statusBarLabel.Text = "Statut : " .. texte
+end
 
 -- ==========================================
 -- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche), dans le bandeau
@@ -190,7 +281,7 @@ local historique = {}
 local historiqueOuvert = false
 
 local historyFrame = Instance.new("ScrollingFrame")
-historyFrame.Position = UDim2.new(0, 10, 0, 95)
+historyFrame.Position = UDim2.new(0, 10, 0, 156)
 historyFrame.Size = UDim2.new(1, -20, 0, 140)
 historyFrame.BackgroundTransparency = 1
 historyFrame.BorderSizePixel = 0
@@ -273,7 +364,7 @@ end
 historyButton.MouseButton1Click:Connect(function()
     historiqueOuvert = not historiqueOuvert
 
-    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 245) or UDim2.new(0, 320, 0, 95)
+    local targetSize = historiqueOuvert and UDim2.new(0, 320, 0, 306) or UDim2.new(0, 320, 0, 156)
     TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
 
     if historiqueOuvert then
@@ -328,12 +419,13 @@ local toggleKey = Enum.KeyCode.B
 
 local function updateInterface(isActive)
     local targetColor = isActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-    local targetText = (isActive and "Mode : ON" or "Mode : OFF") .. " (Touche " .. toggleKey.Name .. ")"
 
-    statusLabel.Text = targetText
+    surlignerSegment(startBtn, isActive, Color3.fromRGB(46, 204, 113))
+    surlignerSegment(stopBtn, not isActive, Color3.fromRGB(231, 76, 60))
     TweenService:Create(uiStrokeMain, tweenInfo, {Color = targetColor}):Play()
-    TweenService:Create(statusLabel, tweenInfo, {TextColor3 = targetColor}):Play()
 end
+
+updateInterface(false) -- état initial : STOP surligné, monitoring inactif
 
 -- ==========================================
 -- SYSTÈME DE DÉTECTION INSTANTANÉE (LOGIQUE)
@@ -385,9 +477,12 @@ local function soumettreCode(boiteCode)
         warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
     end
 
-    if not soumis and boiteCode then
+    if soumis then
+        definirStatut("Soumission auto déclenchée (bouton)")
+    elseif boiteCode then
         warn("[AutoCopier] Pas de bouton exploitable, tentative via ReleaseFocus(true) (simule Entrée)")
         boiteCode:ReleaseFocus(true)
+        definirStatut("Soumission via Entrée (ReleaseFocus)")
     end
 end
 
@@ -399,15 +494,19 @@ ecrireTexte = function(texte)
     if boiteCode then
         boiteCode:CaptureFocus()
         boiteCode.Text = (boiteCode.Text or "") .. texte
+        definirStatut('Écrit "' .. texte .. '"')
 
-        compteurDepuisSoumission = compteurDepuisSoumission + 1
-        if compteurDepuisSoumission >= seuilSoumission then
-            task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
-            soumettreCode(boiteCode)
-            compteurDepuisSoumission = 0
+        if autoSubmitActif then
+            compteurDepuisSoumission = compteurDepuisSoumission + 1
+            if compteurDepuisSoumission >= seuilSoumission then
+                task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
+                soumettreCode(boiteCode)
+                compteurDepuisSoumission = 0
+            end
         end
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
+        definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
             cibleEcriture.Text = cibleEcriture.Text .. texte
@@ -426,6 +525,24 @@ local function copierEtEcrire(texte)
     ecrireTexte(texte)
     ajouterHistorique(texte)
 end
+
+-- Bascule partagée entre la touche rebindable et les boutons START/STOP
+local function activerAutoMode(nouvelEtat)
+    autoMode = nouvelEtat
+    updateInterface(autoMode)
+
+    if autoMode then
+        for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
+            if (enfant:IsA("TextLabel") or enfant:IsA("TextBox")) and enfant.Text ~= "" then
+                copierEtEcrire(enfant.Text)
+                break
+            end
+        end
+    end
+end
+
+startBtn.MouseButton1Click:Connect(function() activerAutoMode(true) end)
+stopBtn.MouseButton1Click:Connect(function() activerAutoMode(false) end)
 
 local function brancherDetecteur(objet)
     if objet:IsA("TextLabel") or objet:IsA("TextBox") then
@@ -458,6 +575,7 @@ local enAttenteTouche = false
 keybindButton.MouseButton1Click:Connect(function()
     enAttenteTouche = true
     keybindButton.Text = "..."
+    definirStatut("En attente d'une touche...")
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -469,6 +587,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
             keybindButton.Text = toggleKey.Name
             enAttenteTouche = false
             updateInterface(autoMode)
+            definirStatut("Touche changée : " .. toggleKey.Name)
         end
         return
     end
@@ -476,17 +595,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if gameProcessedEvent then return end
 
     if input.KeyCode == toggleKey then
-        autoMode = not autoMode
-        updateInterface(autoMode)
-
-        if autoMode then
-            for _, enfant in ipairs(topNotifContainer:GetDescendants()) do
-                if (enfant:IsA("TextLabel") or enfant:IsA("TextBox")) and enfant.Text ~= "" then
-                    copierEtEcrire(enfant.Text)
-                    break
-                end
-            end
-        end
+        activerAutoMode(not autoMode)
     end
 end)
 
@@ -509,7 +618,7 @@ closeButton.MouseButton1Click:Connect(function()
     TweenService:Create(uiStrokeMain, TweenInfo.new(0.2), {Transparency = 1}):Play()
     TweenService:Create(header, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     TweenService:Create(titleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(statusLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(monitoringLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
     TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
 
     fadeOut:Play()
