@@ -505,7 +505,7 @@ ecrireTexte = function(texte)
     if boiteCode and autoSubmitActif then
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
-            task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
+            task.wait() -- une seule frame, juste de quoi laisser le texte se propager avant Submit
             soumettreCode(boiteCode)
             compteurDepuisSoumission = 0
         end
