@@ -20,7 +20,7 @@ screenGui.ResetOnSpawn = false
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 320, 0, 95)
 mainFrame.Position = UDim2.new(0.5, -160, 0, 20)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
@@ -30,30 +30,54 @@ uiCornerMain.CornerRadius = UDim.new(0, 12)
 uiCornerMain.Parent = mainFrame
 
 local uiStrokeMain = Instance.new("UIStroke")
-uiStrokeMain.Thickness = 2
-uiStrokeMain.Color = Color3.fromRGB(231, 76, 60) -- Commence en rouge
+uiStrokeMain.Thickness = 1
+uiStrokeMain.Transparency = 0.4
+uiStrokeMain.Color = Color3.fromRGB(231, 76, 60) -- rouge = OFF, vert = ON (mis à jour dynamiquement)
 uiStrokeMain.Parent = mainFrame
+
+-- Bandeau supérieur : pastille + titre, thème sombre/cyan
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 30)
+header.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+header.BackgroundTransparency = 0.85
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.Parent = header
+
+local dot = Instance.new("Frame")
+dot.Size = UDim2.new(0, 7, 0, 7)
+dot.Position = UDim2.new(0, 12, 0.5, -3)
+dot.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
+dot.BorderSizePixel = 0
+dot.Parent = header
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = dot
 
 -- Titre
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -115, 0, 20)
-titleLabel.Position = UDim2.new(0, 15, 0, 8)
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 24, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-titleLabel.TextSize = 14
+titleLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
+titleLabel.TextSize = 12
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Text = "⚡ AUTO-COPIER V2"
-titleLabel.Parent = mainFrame
+titleLabel.Parent = header
 
 -- Statut (ON/OFF), la touche s'affiche dynamiquement (rebindable)
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, -115, 0, 25)
-statusLabel.Position = UDim2.new(0, 15, 0, 30)
+statusLabel.Size = UDim2.new(1, -30, 0, 20)
+statusLabel.Position = UDim2.new(0, 15, 0, 36)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
-statusLabel.TextSize = 16
-statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.TextSize = 13
+statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.Text = "Mode : OFF (Touche B)"
 statusLabel.Parent = mainFrame
@@ -64,28 +88,24 @@ statusLabel.Parent = mainFrame
 local seuilSoumission = 1
 local compteurDepuisSoumission = 0
 
-local seuilLabel = Instance.new("TextLabel")
-seuilLabel.Size = UDim2.new(0, 210, 0, 22)
-seuilLabel.Position = UDim2.new(0, 42, 0, 58)
-seuilLabel.BackgroundTransparency = 1
-seuilLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-seuilLabel.TextSize = 12
-seuilLabel.Font = Enum.Font.Gotham
-seuilLabel.TextXAlignment = Enum.TextXAlignment.Left
-seuilLabel.Parent = mainFrame
-
-local function mettreAJourSeuilLabel()
-    seuilLabel.Text = "Auto-submit après " .. seuilSoumission .. " texte(s)"
-end
-mettreAJourSeuilLabel()
+local seuilTitleLabel = Instance.new("TextLabel")
+seuilTitleLabel.Size = UDim2.new(0, 90, 0, 22)
+seuilTitleLabel.Position = UDim2.new(0, 15, 0, 60)
+seuilTitleLabel.BackgroundTransparency = 1
+seuilTitleLabel.TextColor3 = Color3.fromRGB(120, 200, 230)
+seuilTitleLabel.TextSize = 10
+seuilTitleLabel.Font = Enum.Font.GothamBold
+seuilTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+seuilTitleLabel.Text = "AUTO-SUBMIT :"
+seuilTitleLabel.Parent = mainFrame
 
 local function creerBoutonSeuil(texte, offsetX)
     local bouton = Instance.new("TextButton")
     bouton.Size = UDim2.new(0, 22, 0, 22)
-    bouton.Position = UDim2.new(0, offsetX, 0, 58)
-    bouton.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-    bouton.BackgroundTransparency = 0.75
-    bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    bouton.Position = UDim2.new(0, offsetX, 0, 60)
+    bouton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    bouton.BorderSizePixel = 0
+    bouton.TextColor3 = Color3.fromRGB(200, 200, 200)
     bouton.TextSize = 14
     bouton.Font = Enum.Font.GothamBold
     bouton.Text = texte
@@ -93,14 +113,30 @@ local function creerBoutonSeuil(texte, offsetX)
     bouton.Parent = mainFrame
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
+    corner.CornerRadius = UDim.new(0, 4)
     corner.Parent = bouton
 
     return bouton
 end
 
-local seuilMoinsBtn = creerBoutonSeuil("-", 15)
-local seuilPlusBtn = creerBoutonSeuil("+", 257)
+local seuilMoinsBtn = creerBoutonSeuil("-", 108)
+
+local seuilLabel = Instance.new("TextLabel")
+seuilLabel.Size = UDim2.new(0, 30, 0, 22)
+seuilLabel.Position = UDim2.new(0, 134, 0, 60)
+seuilLabel.BackgroundTransparency = 1
+seuilLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
+seuilLabel.TextSize = 13
+seuilLabel.Font = Enum.Font.GothamBold
+seuilLabel.TextXAlignment = Enum.TextXAlignment.Center
+seuilLabel.Parent = mainFrame
+
+local seuilPlusBtn = creerBoutonSeuil("+", 168)
+
+local function mettreAJourSeuilLabel()
+    seuilLabel.Text = tostring(seuilSoumission)
+end
+mettreAJourSeuilLabel()
 
 seuilMoinsBtn.MouseButton1Click:Connect(function()
     seuilSoumission = math.max(1, seuilSoumission - 1)
@@ -113,23 +149,23 @@ seuilPlusBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche)
+-- PETIT BOUTON ICÔNE RÉUTILISABLE (close / historique / touche), dans le bandeau
 -- ==========================================
 local function creerBoutonIcone(texte, offsetX, couleur)
     local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, 28, 0, 28)
-    bouton.Position = UDim2.new(1, offsetX, 0, 18)
+    bouton.Size = UDim2.new(0, 22, 0, 22)
+    bouton.Position = UDim2.new(1, offsetX, 0, 4)
     bouton.BackgroundColor3 = couleur
     bouton.BackgroundTransparency = 0.8
     bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    bouton.TextSize = 14
+    bouton.TextSize = 12
     bouton.Font = Enum.Font.GothamBold
     bouton.Text = texte
     bouton.AutoButtonColor = false
-    bouton.Parent = mainFrame
+    bouton.Parent = header
 
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
+    corner.CornerRadius = UDim.new(0, 6)
     corner.Parent = bouton
 
     bouton.MouseEnter:Connect(function()
@@ -142,9 +178,9 @@ local function creerBoutonIcone(texte, offsetX, couleur)
     return bouton
 end
 
-local closeButton = creerBoutonIcone("X", -40, Color3.fromRGB(231, 76, 60))
-local historyButton = creerBoutonIcone("🕘", -76, Color3.fromRGB(52, 152, 219))
-local keybindButton = creerBoutonIcone("B", -112, Color3.fromRGB(155, 89, 182))
+local closeButton = creerBoutonIcone("X", -28, Color3.fromRGB(231, 76, 60))
+local historyButton = creerBoutonIcone("🕘", -54, Color3.fromRGB(52, 152, 219))
+local keybindButton = creerBoutonIcone("B", -80, Color3.fromRGB(155, 89, 182))
 
 -- ==========================================
 -- PANNEAU HISTORIQUE (derniers textes copiés)
@@ -197,8 +233,10 @@ local function rafraichirHistoriqueUI()
         local entree = Instance.new("TextButton")
         entree.Size = UDim2.new(1, 0, 0, 28)
         entree.LayoutOrder = i
-        entree.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-        entree.TextColor3 = Color3.fromRGB(220, 220, 220)
+        entree.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+        entree.BackgroundTransparency = 0.88
+        entree.BorderSizePixel = 0
+        entree.TextColor3 = Color3.fromRGB(0, 220, 255)
         entree.TextSize = 13
         entree.Font = Enum.Font.Gotham
         entree.TextXAlignment = Enum.TextXAlignment.Left
@@ -212,9 +250,9 @@ local function rafraichirHistoriqueUI()
 
         entree.MouseButton1Click:Connect(function()
             ecrireTexte(texte)
-            TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(46, 204, 113)}):Play()
+            TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
             task.wait(0.15)
-            TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(35, 35, 42)}):Play()
+            TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundTransparency = 0.88}):Play()
         end)
     end
 end
@@ -469,6 +507,7 @@ closeButton.MouseButton1Click:Connect(function()
     -- Petite animation avant de se détruire
     local fadeOut = TweenService:Create(mainFrame, TweenInfo.new(0.2), {BackgroundTransparency = 1})
     TweenService:Create(uiStrokeMain, TweenInfo.new(0.2), {Transparency = 1}):Play()
+    TweenService:Create(header, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     TweenService:Create(titleLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
     TweenService:Create(statusLabel, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
     TweenService:Create(closeButton, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
