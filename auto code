@@ -529,6 +529,7 @@ end
 -- Bascule partagée entre la touche rebindable et les boutons START/STOP
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
+    compteurDepuisSoumission = 0 -- repart de zéro à chaque activation/désactivation du monitoring
     updateInterface(autoMode)
 
     if autoMode then
