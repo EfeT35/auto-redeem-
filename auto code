@@ -277,10 +277,11 @@ historyLayout.Parent = historyFrame
 
 local function ecrireBrut(texte) end -- déclarée plus bas, référencée ici pour l'historique (pas de verrou : écrit toujours à la suite)
 local function ecrireTexte(texte) end -- déclarée plus bas, utilisée par la détection automatique
+local function remplacerTexte(texte) end -- déclarée plus bas, référencée ici pour l'historique
 
 local function viderHistoriqueUI()
     for _, enfant in ipairs(historyFrame:GetChildren()) do
-        if enfant:IsA("TextButton") then
+        if enfant:IsA("Frame") or enfant:IsA("TextButton") then
             enfant:Destroy()
         end
     end
@@ -302,29 +303,68 @@ local function rafraichirHistoriqueUI()
     end
 
     for i, texte in ipairs(historique) do
-        local entree = Instance.new("TextButton")
+        local entree = Instance.new("Frame")
         entree.Size = UDim2.new(1, 0, 0, 28)
         entree.LayoutOrder = i
         entree.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
         entree.BackgroundTransparency = 0.88
         entree.BorderSizePixel = 0
-        entree.TextColor3 = Color3.fromRGB(0, 220, 255)
-        entree.TextSize = 13
-        entree.Font = Enum.Font.Gotham
-        entree.TextXAlignment = Enum.TextXAlignment.Left
-        entree.TextTruncate = Enum.TextTruncate.AtEnd
-        entree.Text = "  " .. texte
         entree.Parent = historyFrame
 
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = entree
 
-        entree.MouseButton1Click:Connect(function()
+        local labelTexte = Instance.new("TextLabel")
+        labelTexte.Size = UDim2.new(1, -72, 1, 0)
+        labelTexte.Position = UDim2.new(0, 8, 0, 0)
+        labelTexte.BackgroundTransparency = 1
+        labelTexte.TextColor3 = Color3.fromRGB(0, 220, 255)
+        labelTexte.TextSize = 13
+        labelTexte.Font = Enum.Font.Gotham
+        labelTexte.TextXAlignment = Enum.TextXAlignment.Left
+        labelTexte.TextTruncate = Enum.TextTruncate.AtEnd
+        labelTexte.Text = texte
+        labelTexte.Parent = entree
+
+        local function creerBoutonEntree(symbole, xOffsetDepuisDroite, couleur)
+            local bouton = Instance.new("TextButton")
+            bouton.Size = UDim2.new(0, 26, 0, 22)
+            bouton.Position = UDim2.new(1, xOffsetDepuisDroite, 0.5, -11)
+            bouton.BackgroundColor3 = couleur
+            bouton.BorderSizePixel = 0
+            bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            bouton.TextSize = 13
+            bouton.Font = Enum.Font.GothamBold
+            bouton.Text = symbole
+            bouton.AutoButtonColor = false
+            bouton.Parent = entree
+
+            local btnCorner = Instance.new("UICorner")
+            btnCorner.CornerRadius = UDim.new(0, 5)
+            btnCorner.Parent = bouton
+
+            return bouton
+        end
+
+        -- "+" ajoute à la suite du contenu actuel, "⟳" remplace tout le contenu par ce mot
+        local ajouterBtn = creerBoutonEntree("+", -60, Color3.fromRGB(40, 130, 80))
+        local remplacerBtn = creerBoutonEntree("⟳", -30, Color3.fromRGB(190, 110, 40))
+
+        local function flashCouleur(bouton, couleurBase, couleurFlash)
+            TweenService:Create(bouton, TweenInfo.new(0.12), {BackgroundColor3 = couleurFlash}):Play()
+            task.wait(0.12)
+            TweenService:Create(bouton, TweenInfo.new(0.25), {BackgroundColor3 = couleurBase}):Play()
+        end
+
+        ajouterBtn.MouseButton1Click:Connect(function()
             ecrireBrut(texte)
-            TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
-            task.wait(0.15)
-            TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundTransparency = 0.88}):Play()
+            flashCouleur(ajouterBtn, Color3.fromRGB(40, 130, 80), Color3.fromRGB(46, 204, 113))
+        end)
+
+        remplacerBtn.MouseButton1Click:Connect(function()
+            remplacerTexte(texte)
+            flashCouleur(remplacerBtn, Color3.fromRGB(190, 110, 40), Color3.fromRGB(255, 170, 60))
         end)
     end
 end
@@ -496,24 +536,33 @@ local function surveillerBoiteCode(boiteCode)
     end)
 end
 
--- Écrit toujours à la suite du contenu déjà présent, sans verrou ni auto-submit.
--- Utilisée par les clics manuels sur l'historique : chaque clic doit s'ajouter
--- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
-ecrireBrut = function(texte)
+-- Écrit dans la boîte de code, en ajoutant à la suite ou en remplaçant tout selon `remplacer`.
+-- Pas de verrou ni d'auto-submit : utilisée par les clics manuels sur l'historique, qui
+-- doivent toujours s'appliquer immédiatement même juste après une écriture automatique.
+local function ecrireDansBoite(texte, remplacer)
     if texte == "" then return nil end
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         surveillerBoiteCode(boiteCode)
         boiteCode:CaptureFocus()
-        boiteCode.Text = (boiteCode.Text or "") .. texte
-        definirStatut('Écrit "' .. texte .. '"')
+        if remplacer then
+            boiteCode.Text = texte
+            definirStatut('Remplacé par "' .. texte .. '"')
+        else
+            boiteCode.Text = (boiteCode.Text or "") .. texte
+            definirStatut('Ajouté "' .. texte .. '"')
+        end
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
-            cibleEcriture.Text = cibleEcriture.Text .. texte
+            if remplacer then
+                cibleEcriture.Text = texte
+            else
+                cibleEcriture.Text = cibleEcriture.Text .. texte
+            end
         end
     end
 
@@ -522,6 +571,14 @@ ecrireBrut = function(texte)
     end)
 
     return boiteCode
+end
+
+ecrireBrut = function(texte)
+    return ecrireDansBoite(texte, false)
+end
+
+remplacerTexte = function(texte)
+    return ecrireDansBoite(texte, true)
 end
 
 -- Utilisée par la détection automatique : écrit puis gère le compteur/seuil d'auto-submit.
