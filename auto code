@@ -295,7 +295,8 @@ historyLayout.Padding = UDim.new(0, 6)
 historyLayout.SortOrder = Enum.SortOrder.LayoutOrder
 historyLayout.Parent = historyFrame
 
-local function ecrireTexte(texte) end -- déclarée plus bas, référencée ici pour l'historique
+local function ecrireBrut(texte) end -- déclarée plus bas, référencée ici pour l'historique (pas de verrou : écrit toujours à la suite)
+local function ecrireTexte(texte) end -- déclarée plus bas, utilisée par la détection automatique
 
 local function viderHistoriqueUI()
     for _, enfant in ipairs(historyFrame:GetChildren()) do
@@ -340,7 +341,7 @@ local function rafraichirHistoriqueUI()
         corner.Parent = entree
 
         entree.MouseButton1Click:Connect(function()
-            ecrireTexte(texte)
+            ecrireBrut(texte)
             TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
             task.wait(0.15)
             TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundTransparency = 0.88}):Play()
@@ -486,24 +487,17 @@ local function soumettreCode(boiteCode)
     end
 end
 
-ecrireTexte = function(texte)
-    if enEcriture or texte == "" then return end
-    enEcriture = true
+-- Écrit toujours à la suite du contenu déjà présent, sans verrou ni auto-submit.
+-- Utilisée par les clics manuels sur l'historique : chaque clic doit s'ajouter
+-- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
+ecrireBrut = function(texte)
+    if texte == "" then return nil end
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         boiteCode:CaptureFocus()
         boiteCode.Text = (boiteCode.Text or "") .. texte
         definirStatut('Écrit "' .. texte .. '"')
-
-        if autoSubmitActif then
-            compteurDepuisSoumission = compteurDepuisSoumission + 1
-            if compteurDepuisSoumission >= seuilSoumission then
-                task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
-                soumettreCode(boiteCode)
-                compteurDepuisSoumission = 0
-            end
-        end
     else
         -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         definirStatut("Fenêtre Codes fermée, écriture en attente")
@@ -516,6 +510,25 @@ ecrireTexte = function(texte)
     pcall(function()
         if setclipboard then setclipboard(texte) end
     end)
+
+    return boiteCode
+end
+
+-- Utilisée par la détection automatique : écrit puis gère le compteur/seuil d'auto-submit.
+ecrireTexte = function(texte)
+    if enEcriture or texte == "" then return end
+    enEcriture = true
+
+    local boiteCode = ecrireBrut(texte)
+
+    if boiteCode and autoSubmitActif then
+        compteurDepuisSoumission = compteurDepuisSoumission + 1
+        if compteurDepuisSoumission >= seuilSoumission then
+            task.wait(0.1) -- laisse le texte se propager avant de chercher/déclencher Submit
+            soumettreCode(boiteCode)
+            compteurDepuisSoumission = 0
+        end
+    end
 
     enEcriture = false
 end
