@@ -251,26 +251,19 @@ local scriptActive = true
 local enEcriture = false -- garde-fou anti boucle infinie (écriture -> détection -> écriture...)
 local connexions = {}
 
--- Trouve la boîte de saisie du code (ex: "Code ici...") sans avoir besoin d'y cliquer.
--- Mise en cache tant que l'instance reste valide (elle est retrouvée si la fenêtre Codes se ferme/rouvre).
-local boiteCodeCache = nil
-
+-- Trouve la boîte de saisie du code via son vrai chemin dans PlayerGui.Codes.
+-- FindFirstChild à chaque étape pour ne jamais planter si la fenêtre Codes n'est pas ouverte.
 local function trouverBoiteCode()
-    if boiteCodeCache and boiteCodeCache.Parent then
-        return boiteCodeCache
-    end
+    local codesGui = playerGui:FindFirstChild("Codes")
+    if not codesGui then return nil end
 
-    for _, objet in ipairs(playerGui:GetDescendants()) do
-        if objet:IsA("TextBox") then
-            local indice = (objet.PlaceholderText or "") .. " " .. objet.Name
-            if indice:lower():find("code") then
-                boiteCodeCache = objet
-                return objet
-            end
-        end
-    end
+    local inner = codesGui:FindFirstChild("Codes")
+    if not inner then return nil end
 
-    return nil
+    local redeem = inner:FindFirstChild("CodeRedeem")
+    if not redeem then return nil end
+
+    return redeem:FindFirstChild("TextBox")
 end
 
 ecrireTexte = function(texte)
@@ -279,9 +272,10 @@ ecrireTexte = function(texte)
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
+        boiteCode:CaptureFocus()
         boiteCode.Text = texte
     else
-        -- Repli : si la boîte "code" n'est pas trouvée, on écrit dans la textbox actuellement focus
+        -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
             cibleEcriture.Text = cibleEcriture.Text .. texte
