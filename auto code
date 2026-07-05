@@ -321,19 +321,25 @@ local function trouverBoiteCode()
 end
 
 -- Cherche le bouton Submit n'importe où dans la fenêtre Codes (par nom ou par texte affiché).
+-- GuiButton couvre à la fois TextButton ET ImageButton (le bouton vert peut être une image avec un texte enfant).
 local function trouverBoutonSubmit()
     local codesGui = playerGui:FindFirstChild("Codes")
-    if not codesGui then return nil end
+    if not codesGui then
+        warn("[AutoCopier] playerGui.Codes introuvable (la fenêtre Codes n'a jamais été créée)")
+        return nil
+    end
 
     for _, objet in ipairs(codesGui:GetDescendants()) do
-        if objet:IsA("TextButton") then
-            local indice = objet.Name .. " " .. tostring(objet.Text)
+        if objet:IsA("GuiButton") then
+            local texteAffiche = objet:IsA("TextButton") and objet.Text or ""
+            local indice = objet.Name .. " " .. texteAffiche
             if indice:lower():find("submit") then
                 return objet
             end
         end
     end
 
+    warn("[AutoCopier] Aucun bouton contenant 'submit' trouvé sous playerGui.Codes")
     return nil
 end
 
@@ -342,15 +348,22 @@ local function soumettreCode()
     local bouton = trouverBoutonSubmit()
     if not bouton then return end
 
+    if not getconnections then
+        warn("[AutoCopier] getconnections n'existe pas dans cet executor, impossible de cliquer Submit automatiquement")
+        return
+    end
+
     local ok, connexionsBouton = pcall(getconnections, bouton.Activated)
     if not ok or not connexionsBouton or #connexionsBouton == 0 then
         ok, connexionsBouton = pcall(getconnections, bouton.MouseButton1Click)
     end
 
-    if ok and connexionsBouton then
+    if ok and connexionsBouton and #connexionsBouton > 0 then
         for _, conn in ipairs(connexionsBouton) do
             conn:Fire()
         end
+    else
+        warn("[AutoCopier] Bouton Submit trouvé (" .. bouton:GetFullName() .. ") mais aucune connexion à déclencher")
     end
 end
 
