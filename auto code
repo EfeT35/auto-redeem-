@@ -417,23 +417,39 @@ local scriptActive = true
 local enEcriture = false -- garde-fou anti boucle infinie (écriture -> détection -> écriture...)
 local connexions = {}
 
--- Trouve le frame CodeRedeem (contient la TextBox + le bouton Submit) via son vrai chemin.
+-- Trouve le frame CodeRedeem (contient la TextBox + le bouton Submit) via son vrai chemin,
+-- mis en cache pour éviter de refaire la chaîne de FindFirstChild à chaque appel.
 -- FindFirstChild à chaque étape pour ne jamais planter si la fenêtre Codes n'est pas ouverte.
+local redeemFrameCache = nil
+local boiteCodeCache = nil
+
 local function trouverFrameCodeRedeem()
+    if redeemFrameCache and redeemFrameCache.Parent then
+        return redeemFrameCache
+    end
+
     local codesGui = playerGui:FindFirstChild("Codes")
     if not codesGui then return nil end
 
     local inner = codesGui:FindFirstChild("Codes")
     if not inner then return nil end
 
-    return inner:FindFirstChild("CodeRedeem")
+    local redeem = inner:FindFirstChild("CodeRedeem")
+    redeemFrameCache = redeem
+    return redeem
 end
 
 local function trouverBoiteCode()
+    if boiteCodeCache and boiteCodeCache.Parent then
+        return boiteCodeCache
+    end
+
     local redeem = trouverFrameCodeRedeem()
     if not redeem then return nil end
 
-    return redeem:FindFirstChild("TextBox")
+    local boite = redeem:FindFirstChild("TextBox")
+    boiteCodeCache = boite
+    return boite
 end
 
 -- Cache le bouton Submit trouvé pour éviter de rescanner tout CodeRedeem à chaque
@@ -536,9 +552,7 @@ ecrireBrut = function(texte)
         end
     end
 
-    pcall(function()
-        if setclipboard then setclipboard(texte) end
-    end)
+    if setclipboard then pcall(setclipboard, texte) end
 
     return boiteCode
 end
