@@ -280,7 +280,7 @@ local function ecrireTexte(texte) end -- déclarée plus bas, utilisée par la d
 
 local function viderHistoriqueUI()
     for _, enfant in ipairs(historyFrame:GetChildren()) do
-        if enfant:IsA("Frame") or enfant:IsA("TextButton") then
+        if enfant:IsA("TextButton") then
             enfant:Destroy()
         end
     end
@@ -302,62 +302,29 @@ local function rafraichirHistoriqueUI()
     end
 
     for i, texte in ipairs(historique) do
-        local entree = Instance.new("Frame")
+        local entree = Instance.new("TextButton")
         entree.Size = UDim2.new(1, 0, 0, 28)
         entree.LayoutOrder = i
         entree.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
         entree.BackgroundTransparency = 0.88
         entree.BorderSizePixel = 0
+        entree.TextColor3 = Color3.fromRGB(0, 220, 255)
+        entree.TextSize = 13
+        entree.Font = Enum.Font.Gotham
+        entree.TextXAlignment = Enum.TextXAlignment.Left
+        entree.TextTruncate = Enum.TextTruncate.AtEnd
+        entree.Text = "  " .. texte
         entree.Parent = historyFrame
 
         local corner = Instance.new("UICorner")
         corner.CornerRadius = UDim.new(0, 6)
         corner.Parent = entree
 
-        local labelTexte = Instance.new("TextLabel")
-        labelTexte.Size = UDim2.new(1, -42, 1, 0)
-        labelTexte.Position = UDim2.new(0, 8, 0, 0)
-        labelTexte.BackgroundTransparency = 1
-        labelTexte.TextColor3 = Color3.fromRGB(0, 220, 255)
-        labelTexte.TextSize = 13
-        labelTexte.Font = Enum.Font.Gotham
-        labelTexte.TextXAlignment = Enum.TextXAlignment.Left
-        labelTexte.TextTruncate = Enum.TextTruncate.AtEnd
-        labelTexte.Text = texte
-        labelTexte.Parent = entree
-
-        local function creerBoutonEntree(symbole, xOffsetDepuisDroite, couleur)
-            local bouton = Instance.new("TextButton")
-            bouton.Size = UDim2.new(0, 26, 0, 22)
-            bouton.Position = UDim2.new(1, xOffsetDepuisDroite, 0.5, -11)
-            bouton.BackgroundColor3 = couleur
-            bouton.BorderSizePixel = 0
-            bouton.TextColor3 = Color3.fromRGB(255, 255, 255)
-            bouton.TextSize = 13
-            bouton.Font = Enum.Font.GothamBold
-            bouton.Text = symbole
-            bouton.AutoButtonColor = false
-            bouton.Parent = entree
-
-            local btnCorner = Instance.new("UICorner")
-            btnCorner.CornerRadius = UDim.new(0, 5)
-            btnCorner.Parent = bouton
-
-            return bouton
-        end
-
-        -- Ajoute le mot à la suite du contenu actuel de la boîte de code
-        local ajouterBtn = creerBoutonEntree("+", -30, Color3.fromRGB(40, 130, 80))
-
-        local function flashCouleur(bouton, couleurBase, couleurFlash)
-            TweenService:Create(bouton, TweenInfo.new(0.12), {BackgroundColor3 = couleurFlash}):Play()
-            task.wait(0.12)
-            TweenService:Create(bouton, TweenInfo.new(0.25), {BackgroundColor3 = couleurBase}):Play()
-        end
-
-        ajouterBtn.MouseButton1Click:Connect(function()
+        entree.MouseButton1Click:Connect(function()
             ecrireBrut(texte)
-            flashCouleur(ajouterBtn, Color3.fromRGB(40, 130, 80), Color3.fromRGB(46, 204, 113))
+            TweenService:Create(entree, TweenInfo.new(0.15), {BackgroundTransparency = 0.4}):Play()
+            task.wait(0.15)
+            TweenService:Create(entree, TweenInfo.new(0.3), {BackgroundTransparency = 0.88}):Play()
         end)
     end
 end
@@ -469,27 +436,46 @@ local function trouverBoiteCode()
     return redeem:FindFirstChild("TextBox")
 end
 
--- Essaie d'abord de déclencher le bouton Submit (premier TextButton/ImageButton avec une
--- connexion Activated trouvé dans CodeRedeem). Si aucun n'a de connexion exploitable, on
--- retombe sur ReleaseFocus(true) : ça simule un appui sur Entrée et déclenche le FocusLost(true)
--- de la boîte, qui est souvent le vrai déclencheur de validation dans ce genre d'UI.
+-- Cache le bouton Submit trouvé pour éviter de rescanner tout CodeRedeem à chaque
+-- soumission : la toute première fois ça scanne, ensuite ça tire directement dessus.
+local boutonSubmitCache = nil
+
+local function tenterDeclencherBouton(bouton)
+    local ok, connexionsBouton = pcall(getconnections, bouton.Activated)
+    if ok and connexionsBouton and #connexionsBouton > 0 then
+        connexionsBouton[1]:Fire()
+        return true
+    end
+    return false
+end
+
+-- Essaie d'abord de déclencher le bouton Submit (mis en cache après la première réussite,
+-- sinon premier TextButton/ImageButton avec une connexion Activated trouvé dans CodeRedeem).
+-- Si aucun n'a de connexion exploitable, on retombe sur ReleaseFocus(true) : ça simule un
+-- appui sur Entrée et déclenche le FocusLost(true) de la boîte, qui est souvent le vrai
+-- déclencheur de validation dans ce genre d'UI.
 local function soumettreCode(boiteCode)
-    local redeem = trouverFrameCodeRedeem()
     local soumis = false
 
-    if redeem then
-        for _, objet in ipairs(redeem:GetDescendants()) do
-            if objet:IsA("TextButton") or objet:IsA("ImageButton") then
-                local ok, connexionsBouton = pcall(getconnections, objet.Activated)
-                if ok and connexionsBouton and #connexionsBouton > 0 then
-                    connexionsBouton[1]:Fire()
-                    soumis = true
-                    break
+    if boutonSubmitCache and boutonSubmitCache.Parent then
+        soumis = tenterDeclencherBouton(boutonSubmitCache)
+    end
+
+    if not soumis then
+        local redeem = trouverFrameCodeRedeem()
+        if redeem then
+            for _, objet in ipairs(redeem:GetDescendants()) do
+                if objet:IsA("TextButton") or objet:IsA("ImageButton") then
+                    if tenterDeclencherBouton(objet) then
+                        boutonSubmitCache = objet
+                        soumis = true
+                        break
+                    end
                 end
             end
+        else
+            warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
         end
-    else
-        warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
     end
 
     if soumis then
