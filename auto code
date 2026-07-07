@@ -554,9 +554,11 @@ ecrireTexte = function(texte)
         compteurDepuisSoumission = compteurDepuisSoumission + 1
         if compteurDepuisSoumission >= seuilSoumission then
             compteurDepuisSoumission = 0
-            -- task.defer laisse juste passer les écouteurs Text déjà en file (comportement
-            -- "Deferred" des évènements Roblox) sans imposer de pause fixe : quasi instantané.
-            task.defer(soumettreCode, boiteCode)
+            -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
+            -- rater le Submit si le jeu n'a pas fini de traiter le texte (comportement
+            -- "Deferred" des évènements Roblox) — repasser à task.defer(soumettreCode, boiteCode)
+            -- si ça rate à nouveau avant le bon mot.
+            soumettreCode(boiteCode)
         end
     end
 
