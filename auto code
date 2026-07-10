@@ -434,6 +434,17 @@ end
 -- fixe ne suffit pas. Solution réactive : on surveille la boîte en continu, et dès que
 -- son texte devient vide alors qu'on a un dernier mot valide, on le remet IMMÉDIATEMENT,
 -- peu importe combien de temps le vidage du jeu a mis à se déclencher.
+--
+-- Pour ne pas remettre un mot que TOI tu viens d'effacer volontairement (Backspace/Suppr),
+-- on retient le dernier appui clavier : si le vidage arrive juste après une touche pressée,
+-- c'est toi qui l'as fait, donc pas de remise.
+local dernierAppuiClavier = 0
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        dernierAppuiClavier = tick()
+    end
+end)
+
 local dernierMotEcrit = ""
 local boiteSurveillee = nil
 local connexionSurveillance = nil
@@ -452,9 +463,12 @@ local function surveillerBoiteCode(boiteCode)
     end
 
     connexionSurveillance = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
-        -- Ne remet le mot que si le monitoring est actif : sinon impossible d'effacer
-        -- la boîte soi-même, l'espion la remplirait aussitôt derrière.
-        if autoMode and boiteCode.Text == "" and dernierMotEcrit ~= "" then
+        local viensDeTaperAuClavier = (tick() - dernierAppuiClavier) < 0.5
+
+        -- Ne remet le mot que si le monitoring est actif, que la boîte est vraiment
+        -- vide, et qu'on n'a pas détecté d'appui clavier récent (= probablement toi
+        -- qui viens d'effacer manuellement, donc on n'insiste pas).
+        if autoMode and boiteCode.Text == "" and dernierMotEcrit ~= "" and not viensDeTaperAuClavier then
             print('[AutoCopier] Boîte vidée par le jeu, remise immédiate de "' .. dernierMotEcrit .. '"')
             boiteCode.Text = dernierMotEcrit
         end
