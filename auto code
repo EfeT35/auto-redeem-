@@ -452,7 +452,9 @@ local function surveillerBoiteCode(boiteCode)
     end
 
     connexionSurveillance = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
-        if boiteCode.Text == "" and dernierMotEcrit ~= "" then
+        -- Ne remet le mot que si le monitoring est actif : sinon impossible d'effacer
+        -- la boîte soi-même, l'espion la remplirait aussitôt derrière.
+        if autoMode and boiteCode.Text == "" and dernierMotEcrit ~= "" then
             print('[AutoCopier] Boîte vidée par le jeu, remise immédiate de "' .. dernierMotEcrit .. '"')
             boiteCode.Text = dernierMotEcrit
         end
@@ -531,6 +533,7 @@ end
 -- textes qui apparaissent/changent APRÈS l'activation doivent être copiés.
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
+    dernierMotEcrit = "" -- nouvelle tentative : plus rien à remettre tant qu'un mot n'est pas écrit
     updateInterface(autoMode)
 end
 
