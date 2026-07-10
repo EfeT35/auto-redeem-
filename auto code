@@ -372,6 +372,29 @@ local function trouverBoiteCode()
     return boite
 end
 
+-- Beaucoup de jeux ferment la fenêtre Codes après un clic Submit (réussi ou pas).
+-- La boîte peut donc rester techniquement valide (juste cachée) : on vérifie si la
+-- fenêtre est visible, et sinon on la rouvre via le bouton "Codes" de la nav, comme
+-- dans la source de référence.
+local function fenetreCodesEstOuverte()
+    local codesGui = playerGui:FindFirstChild("Codes")
+    if not codesGui then return false end
+
+    local inner = codesGui:FindFirstChild("Codes")
+    if inner then return inner.Visible end
+
+    return codesGui.Enabled
+end
+
+local function ouvrirFenetreCodes()
+    pcall(function()
+        local codesBtn = playerGui.LeftCenter.LeftCenter.Buttons.Codes
+        for _, conn in ipairs(getconnections(codesBtn.Activated)) do
+            conn:Fire()
+        end
+    end)
+end
+
 -- Cache le bouton Submit trouvé pour éviter de rescanner tout CodeRedeem à chaque
 -- soumission : la toute première fois ça scanne, ensuite ça tire directement dessus.
 local boutonSubmitCache = nil
@@ -431,7 +454,12 @@ local codeAccumule = ""
 
 -- Réécrit l'intégralité du code accumulé dans la boîte (ou en repli dans la textbox
 -- focus), peu importe ce qu'il y avait avant : ça "remet les mots" si le jeu les a effacés.
+-- Rouvre d'abord la fenêtre Codes si le jeu l'a fermée (souvent le cas juste après Submit).
 local function reecrireBuffer()
+    if not fenetreCodesEstOuverte() then
+        ouvrirFenetreCodes()
+    end
+
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         boiteCode:CaptureFocus()
