@@ -423,38 +423,52 @@ local function soumettreCode(boiteCode)
     end
 end
 
--- Écrit le mot SEUL dans la boîte (remplace tout ce qu'il y avait avant, pas d'accumulation
--- avec les mots précédents). Pas de verrou : utilisée par les clics manuels sur l'historique,
--- qui doivent toujours s'appliquer immédiatement même juste après une écriture automatique.
-ecrireBrut = function(texte)
-    if texte == "" then return nil end
+-- Le script est la seule source de vérité pour le code en cours de construction :
+-- si le jeu vide la boîte après un essai raté, elle est reconstruite à partir de ce
+-- buffer au prochain mot au lieu de repartir d'une boîte vide sans le savoir.
+-- Remis à zéro à chaque activation/désactivation du monitoring (nouvelle tentative).
+local codeAccumule = ""
 
+-- Réécrit l'intégralité du code accumulé dans la boîte (ou en repli dans la textbox
+-- focus), peu importe ce qu'il y avait avant : ça "remet les mots" si le jeu les a effacés.
+local function reecrireBuffer()
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         boiteCode:CaptureFocus()
-        boiteCode.Text = texte
-        definirStatut('Écrit "' .. texte .. '"')
+        boiteCode.Text = codeAccumule
+        definirStatut('Code actuel : "' .. codeAccumule .. '"')
     else
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
-            cibleEcriture.Text = texte
+            cibleEcriture.Text = codeAccumule
         end
     end
 
-    if setclipboard then pcall(setclipboard, texte) end
+    if setclipboard then pcall(setclipboard, codeAccumule) end
 
     return boiteCode
 end
 
--- Utilisée par la détection automatique : à partir du moment où le monitoring est actif,
--- chaque mot détecté est testé seul (il remplace le précédent) et Submit est déclenché
--- immédiatement, sans compteur ni seuil.
+-- Ajoute un mot au code accumulé et le réécrit en entier, sans verrou ni auto-submit.
+-- Utilisée par les clics manuels sur l'historique : chaque clic doit s'appliquer
+-- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
+ecrireBrut = function(texte)
+    if texte == "" then return nil end
+    codeAccumule = codeAccumule .. texte
+    return reecrireBuffer()
+end
+
+-- Utilisée par la détection automatique : ajoute le mot au buffer, réécrit tout,
+-- puis retente Submit. Comme le buffer est toujours réécrit en entier, un essai
+-- raté (qui a pu vider la boîte côté jeu) n'efface jamais les mots déjà accumulés :
+-- mot1 échoue -> mot1 est remis -> mot2 arrive -> mot1+mot2 est testé, etc.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
 
-    local boiteCode = ecrireBrut(texte)
+    codeAccumule = codeAccumule .. texte
+    local boiteCode = reecrireBuffer()
 
     if boiteCode and autoSubmitActif then
         -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
@@ -483,6 +497,7 @@ end
 -- textes qui apparaissent/changent APRÈS l'activation doivent être copiés.
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
+    codeAccumule = "" -- nouvelle tentative : on oublie les mots de la fois précédente
     updateInterface(autoMode)
 end
 
