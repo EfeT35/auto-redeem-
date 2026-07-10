@@ -486,9 +486,9 @@ ecrireBrut = function(texte)
     return ecrireMotDansBoite(texte)
 end
 
--- Utilisée par la détection automatique : écrit le mot, retente Submit, puis remet
--- le DERNIER mot de l'historique (historique[1], la source de vérité affichée à
--- l'écran) dans la boîte tout de suite après, sans attendre le mot suivant.
+-- Utilisée par la détection automatique : écrit le mot, retente Submit, puis réécrit
+-- le même mot dans la boîte juste après (une fois le vidage du jeu passé), sans
+-- attendre le mot suivant.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
@@ -508,9 +508,7 @@ ecrireTexte = function(texte)
         -- frame suffit à laisser ce vidage se produire avant qu'on réécrive par-dessus.
         task.wait()
 
-        if historique[1] then
-            ecrireMotDansBoite(historique[1])
-        end
+        ecrireMotDansBoite(texte)
     end
 
     enEcriture = false
