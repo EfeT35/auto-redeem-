@@ -201,7 +201,7 @@ local function ecrireTexte(texte) end -- déclarée plus bas, utilisée par la d
 
 local function viderHistoriqueUI()
     for _, enfant in ipairs(historyFrame:GetChildren()) do
-        if enfant:IsA("TextButton") then
+        if enfant:IsA("TextButton") or enfant:IsA("TextLabel") then
             enfant:Destroy()
         end
     end
@@ -338,39 +338,26 @@ local scriptActive = true
 local enEcriture = false -- garde-fou anti boucle infinie (écriture -> détection -> écriture...)
 local connexions = {}
 
--- Trouve le frame CodeRedeem (contient la TextBox + le bouton Submit) via son vrai chemin,
--- mis en cache pour éviter de refaire la chaîne de FindFirstChild à chaque appel.
+-- Trouve le frame CodeRedeem (contient la TextBox + le bouton Submit) via son vrai chemin.
+-- Pas de cache : le jeu semble recréer cette fenêtre à l'ouverture/fermeture, et une
+-- référence mise en cache pouvait pointer vers une instance qui n'était plus affichée
+-- (le mot était bien écrit... mais sur une boîte que le joueur ne voyait plus).
 -- FindFirstChild à chaque étape pour ne jamais planter si la fenêtre Codes n'est pas ouverte.
-local redeemFrameCache = nil
-local boiteCodeCache = nil
-
 local function trouverFrameCodeRedeem()
-    if redeemFrameCache and redeemFrameCache.Parent then
-        return redeemFrameCache
-    end
-
     local codesGui = playerGui:FindFirstChild("Codes")
     if not codesGui then return nil end
 
     local inner = codesGui:FindFirstChild("Codes")
     if not inner then return nil end
 
-    local redeem = inner:FindFirstChild("CodeRedeem")
-    redeemFrameCache = redeem
-    return redeem
+    return inner:FindFirstChild("CodeRedeem")
 end
 
 local function trouverBoiteCode()
-    if boiteCodeCache and boiteCodeCache.Parent then
-        return boiteCodeCache
-    end
-
     local redeem = trouverFrameCodeRedeem()
     if not redeem then return nil end
 
-    local boite = redeem:FindFirstChild("TextBox")
-    boiteCodeCache = boite
-    return boite
+    return redeem:FindFirstChild("TextBox")
 end
 
 -- Beaucoup de jeux ferment la fenêtre Codes après un clic Submit (réussi ou pas).
@@ -401,10 +388,8 @@ local function ouvrirFenetreCodes()
     end
 end
 
--- Cache le bouton Submit trouvé pour éviter de rescanner tout CodeRedeem à chaque
--- soumission : la toute première fois ça scanne, ensuite ça tire directement dessus.
-local boutonSubmitCache = nil
-
+-- Pas de cache non plus pour le bouton Submit, même raison que trouverBoiteCode : on
+-- rescanne CodeRedeem à chaque soumission pour être sûr de cibler l'instance affichée.
 local function tenterDeclencherBouton(bouton)
     local ok, connexionsBouton = pcall(getconnections, bouton.Activated)
     if ok and connexionsBouton and #connexionsBouton > 0 then
@@ -414,33 +399,25 @@ local function tenterDeclencherBouton(bouton)
     return false
 end
 
--- Essaie d'abord de déclencher le bouton Submit (mis en cache après la première réussite,
--- sinon premier TextButton/ImageButton avec une connexion Activated trouvé dans CodeRedeem).
--- Si aucun n'a de connexion exploitable, on retombe sur ReleaseFocus(true) : ça simule un
--- appui sur Entrée et déclenche le FocusLost(true) de la boîte, qui est souvent le vrai
--- déclencheur de validation dans ce genre d'UI.
+-- Cherche le bouton Submit (premier TextButton/ImageButton avec une connexion Activated
+-- trouvé dans CodeRedeem) et le déclenche. Si aucun n'a de connexion exploitable, on
+-- retombe sur ReleaseFocus(true) : ça simule un appui sur Entrée et déclenche le
+-- FocusLost(true) de la boîte, qui est souvent le vrai déclencheur de validation.
 local function soumettreCode(boiteCode)
     local soumis = false
 
-    if boutonSubmitCache and boutonSubmitCache.Parent then
-        soumis = tenterDeclencherBouton(boutonSubmitCache)
-    end
-
-    if not soumis then
-        local redeem = trouverFrameCodeRedeem()
-        if redeem then
-            for _, objet in ipairs(redeem:GetDescendants()) do
-                if objet:IsA("TextButton") or objet:IsA("ImageButton") then
-                    if tenterDeclencherBouton(objet) then
-                        boutonSubmitCache = objet
-                        soumis = true
-                        break
-                    end
+    local redeem = trouverFrameCodeRedeem()
+    if redeem then
+        for _, objet in ipairs(redeem:GetDescendants()) do
+            if objet:IsA("TextButton") or objet:IsA("ImageButton") then
+                if tenterDeclencherBouton(objet) then
+                    soumis = true
+                    break
                 end
             end
-        else
-            warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
         end
+    else
+        warn("[AutoCopier] playerGui.Codes.Codes.CodeRedeem introuvable, impossible de soumettre via un bouton")
     end
 
     if soumis then
@@ -464,6 +441,7 @@ local function ecrireMotDansBoite(texte)
         boiteCode:CaptureFocus()
         boiteCode.Text = texte
         definirStatut('Écrit "' .. texte .. '"')
+        print("[AutoCopier] Vérif relecture immédiate : boiteCode.Text = \"" .. boiteCode.Text .. "\" (chemin : " .. boiteCode:GetFullName() .. ")")
     else
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
