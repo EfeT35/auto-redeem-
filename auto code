@@ -171,6 +171,7 @@ statusBarLabel.Parent = statusBar
 
 local function definirStatut(texte)
     statusBarLabel.Text = "Statut : " .. texte
+    print("[AutoCopier] Statut : " .. texte)
 end
 
 -- ==========================================
@@ -387,12 +388,17 @@ local function fenetreCodesEstOuverte()
 end
 
 local function ouvrirFenetreCodes()
-    pcall(function()
+    local ok, err = pcall(function()
         local codesBtn = playerGui.LeftCenter.LeftCenter.Buttons.Codes
-        for _, conn in ipairs(getconnections(codesBtn.Activated)) do
+        local connexionsBtn = getconnections(codesBtn.Activated)
+        print("[AutoCopier] Réouverture Codes : bouton trouvé, " .. #connexionsBtn .. " connexion(s)")
+        for _, conn in ipairs(connexionsBtn) do
             conn:Fire()
         end
     end)
+    if not ok then
+        warn("[AutoCopier] Échec réouverture fenêtre Codes : " .. tostring(err))
+    end
 end
 
 -- Cache le bouton Submit trouvé pour éviter de rescanner tout CodeRedeem à chaque
