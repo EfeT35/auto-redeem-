@@ -429,6 +429,29 @@ local function soumettreCode(boiteCode)
     end
 end
 
+-- Espion temporaire (diagnostic) : log tout changement de Text sur la boîte après notre
+-- écriture, avec qui est connecté sur le signal, pour voir ce qui la vide juste après.
+local boiteEspionnee = nil
+local connexionEspion = nil
+
+local function espionnerBoiteCode(boiteCode)
+    if boiteCode == boiteEspionnee then return end
+
+    if connexionEspion then
+        connexionEspion:Disconnect()
+    end
+    boiteEspionnee = boiteCode
+
+    local ok, connexionsTexte = pcall(getconnections, boiteCode:GetPropertyChangedSignal("Text"))
+    if ok then
+        print("[AutoCopier][ESPION] " .. #connexionsTexte .. " connexion(s) externe(s) sur Text de la boîte")
+    end
+
+    connexionEspion = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
+        print('[AutoCopier][ESPION] Text a changé -> "' .. boiteCode.Text .. '" (t=' .. tostring(tick()) .. ')')
+    end)
+end
+
 -- Écrit un mot précis dans la boîte (remplace, pas d'accumulation). Rouvre d'abord la
 -- fenêtre Codes si le jeu l'a fermée (souvent le cas juste après Submit).
 local function ecrireMotDansBoite(texte)
@@ -438,6 +461,7 @@ local function ecrireMotDansBoite(texte)
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
+        espionnerBoiteCode(boiteCode)
         boiteCode:CaptureFocus()
         boiteCode.Text = texte
         definirStatut('Écrit "' .. texte .. '"')
