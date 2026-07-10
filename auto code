@@ -19,7 +19,7 @@ screenGui.ResetOnSpawn = false
 -- Le conteneur principal (déplaçable, se redimensionne pour l'historique)
 -- Style "menu d'actions" empilées, inspiré de XenHub V5
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 346)
+mainFrame.Size = UDim2.new(0, 300, 0, 304)
 mainFrame.Position = UDim2.new(0.5, -150, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
 mainFrame.BackgroundTransparency = 0.05
@@ -134,101 +134,21 @@ autoSubmitToggle.MouseButton1Click:Connect(function()
     actualiserAutoSubmitToggle()
 end)
 
--- Ligne 3 : Submit après (#) — carte avec seuil ajustable, pas un bouton d'action classique
-local seuilSoumission = 1
-local compteurDepuisSoumission = 0
+-- Ligne 3 : Historique (accent bleu, comme "Settings" chez XenHub)
+local historyButton = creerBoutonAction("HISTORIQUE ▾", 142, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
 
-local submitAfterCard = Instance.new("Frame")
-submitAfterCard.Size = UDim2.new(1, -20, 0, 34)
-submitAfterCard.Position = UDim2.new(0, 10, 0, 142)
-submitAfterCard.BackgroundColor3 = COULEUR_NEUTRE
-submitAfterCard.BorderSizePixel = 0
-submitAfterCard.Parent = mainFrame
+-- Ligne 4 : Touche rebindable
+local keybindButton = creerBoutonAction("TOUCHE : B", 184, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
 
-local submitAfterCorner = Instance.new("UICorner")
-submitAfterCorner.CornerRadius = UDim.new(0, 8)
-submitAfterCorner.Parent = submitAfterCard
-
-local seuilTitleLabel = Instance.new("TextLabel")
-seuilTitleLabel.Size = UDim2.new(1, -110, 1, 0)
-seuilTitleLabel.Position = UDim2.new(0, 12, 0, 0)
-seuilTitleLabel.BackgroundTransparency = 1
-seuilTitleLabel.TextColor3 = Color3.fromRGB(200, 200, 210)
-seuilTitleLabel.TextSize = 12
-seuilTitleLabel.Font = Enum.Font.GothamBold
-seuilTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-seuilTitleLabel.Text = "SUBMIT APRÈS (#)"
-seuilTitleLabel.Parent = submitAfterCard
-
-local function creerBoutonSeuil(texte, xOffsetDepuisDroite)
-    local bouton = Instance.new("TextButton")
-    bouton.Size = UDim2.new(0, 22, 0, 22)
-    bouton.Position = UDim2.new(1, xOffsetDepuisDroite, 0.5, -11)
-    bouton.BackgroundColor3 = Color3.fromRGB(50, 50, 62)
-    bouton.BorderSizePixel = 0
-    bouton.TextColor3 = Color3.fromRGB(210, 210, 215)
-    bouton.TextSize = 14
-    bouton.Font = Enum.Font.GothamBold
-    bouton.Text = texte
-    bouton.AutoButtonColor = false
-    bouton.Parent = submitAfterCard
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent = bouton
-
-    return bouton
-end
-
-local seuilMoinsBtn = creerBoutonSeuil("-", -92)
-
-local seuilLabel = Instance.new("TextLabel")
-seuilLabel.Size = UDim2.new(0, 26, 0, 26)
-seuilLabel.Position = UDim2.new(1, -62, 0.5, -13)
-seuilLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
-seuilLabel.BorderSizePixel = 0
-seuilLabel.TextColor3 = Color3.fromRGB(255, 220, 80)
-seuilLabel.TextSize = 13
-seuilLabel.Font = Enum.Font.GothamBold
-seuilLabel.TextXAlignment = Enum.TextXAlignment.Center
-seuilLabel.Parent = submitAfterCard
-
-local seuilLabelCorner = Instance.new("UICorner")
-seuilLabelCorner.CornerRadius = UDim.new(0, 5)
-seuilLabelCorner.Parent = seuilLabel
-
-local seuilPlusBtn = creerBoutonSeuil("+", -32)
-
-local function mettreAJourSeuilLabel()
-    seuilLabel.Text = tostring(seuilSoumission)
-end
-mettreAJourSeuilLabel()
-
-seuilMoinsBtn.MouseButton1Click:Connect(function()
-    seuilSoumission = math.max(1, seuilSoumission - 1)
-    mettreAJourSeuilLabel()
-end)
-
-seuilPlusBtn.MouseButton1Click:Connect(function()
-    seuilSoumission = math.min(20, seuilSoumission + 1)
-    mettreAJourSeuilLabel()
-end)
-
--- Ligne 4 : Historique (accent bleu, comme "Settings" chez XenHub)
-local historyButton = creerBoutonAction("HISTORIQUE ▾", 184, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
-
--- Ligne 5 : Touche rebindable
-local keybindButton = creerBoutonAction("TOUCHE : B", 226, COULEUR_ACCENT, Color3.fromRGB(255, 255, 255))
-
--- Ligne 6 : Fermer (rouge plein, comme "Reset" chez XenHub)
-local closeButton = creerBoutonAction("FERMER", 268, COULEUR_DANGER, Color3.fromRGB(255, 255, 255))
+-- Ligne 5 : Fermer (rouge plein, comme "Reset" chez XenHub)
+local closeButton = creerBoutonAction("FERMER", 226, COULEUR_DANGER, Color3.fromRGB(255, 255, 255))
 
 -- ==========================================
 -- BARRE DE STATUT (dernier événement)
 -- ==========================================
 local statusBar = Instance.new("Frame")
 statusBar.Size = UDim2.new(1, -20, 0, 26)
-statusBar.Position = UDim2.new(0, 10, 0, 310)
+statusBar.Position = UDim2.new(0, 10, 0, 268)
 statusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 26)
 statusBar.BorderSizePixel = 0
 statusBar.Parent = mainFrame
@@ -261,7 +181,7 @@ local historique = {}
 local historiqueOuvert = false
 
 local historyFrame = Instance.new("ScrollingFrame")
-historyFrame.Position = UDim2.new(0, 10, 0, 346)
+historyFrame.Position = UDim2.new(0, 10, 0, 304)
 historyFrame.Size = UDim2.new(1, -20, 0, 140)
 historyFrame.BackgroundTransparency = 1
 historyFrame.BorderSizePixel = 0
@@ -346,7 +266,7 @@ historyButton.MouseButton1Click:Connect(function()
     historiqueOuvert = not historiqueOuvert
     historyButton.Text = historiqueOuvert and "HISTORIQUE ▴" or "HISTORIQUE ▾"
 
-    local targetSize = historiqueOuvert and UDim2.new(0, 300, 0, 496) or UDim2.new(0, 300, 0, 346)
+    local targetSize = historiqueOuvert and UDim2.new(0, 300, 0, 454) or UDim2.new(0, 300, 0, 304)
     TweenService:Create(mainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {Size = targetSize}):Play()
 
     if historiqueOuvert then
@@ -528,8 +448,8 @@ ecrireBrut = function(texte)
 end
 
 -- Utilisée par la détection automatique : à partir du moment où le monitoring est actif,
--- chaque mot détecté est testé seul (il remplace le précédent) puis Submit est retenté
--- une fois le seuil atteint (1 par défaut = un essai à chaque mot).
+-- chaque mot détecté est testé seul (il remplace le précédent) et Submit est déclenché
+-- immédiatement, sans compteur ni seuil.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
@@ -537,15 +457,11 @@ ecrireTexte = function(texte)
     local boiteCode = ecrireBrut(texte)
 
     if boiteCode and autoSubmitActif then
-        compteurDepuisSoumission = compteurDepuisSoumission + 1
-        if compteurDepuisSoumission >= seuilSoumission then
-            compteurDepuisSoumission = 0
-            -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
-            -- rater le Submit si le jeu n'a pas fini de traiter le texte (comportement
-            -- "Deferred" des évènements Roblox) — repasser à task.defer(soumettreCode, boiteCode)
-            -- si ça rate à nouveau avant le bon mot.
-            soumettreCode(boiteCode)
-        end
+        -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
+        -- rater le Submit si le jeu n'a pas fini de traiter le texte (comportement
+        -- "Deferred" des évènements Roblox) — repasser à task.defer(soumettreCode, boiteCode)
+        -- si ça rate à nouveau avant le bon mot.
+        soumettreCode(boiteCode)
     end
 
     enEcriture = false
@@ -567,7 +483,6 @@ end
 -- textes qui apparaissent/changent APRÈS l'activation doivent être copiés.
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
-    compteurDepuisSoumission = 0 -- repart de zéro à chaque activation/désactivation du monitoring
     updateInterface(autoMode)
 end
 
