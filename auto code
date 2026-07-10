@@ -477,6 +477,11 @@ ecrireTexte = function(texte)
         -- "Deferred" des évènements Roblox) — repasser à task.defer(soumettreCode, boiteCode)
         -- si ça rate à nouveau avant le bon mot.
         soumettreCode(boiteCode)
+
+        -- Le jeu vide parfois la boîte au moment même du Submit : on remet le buffer
+        -- tout de suite, sans attendre le mot suivant, pour que la boîte ne reste
+        -- jamais vide entre-temps.
+        reecrireBuffer()
     end
 
     enEcriture = false
