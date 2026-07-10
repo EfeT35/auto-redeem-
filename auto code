@@ -468,6 +468,7 @@ ecrireTexte = function(texte)
     enEcriture = true
 
     codeAccumule = codeAccumule .. texte
+    print('[AutoCopier] Mot détecté "' .. texte .. '" -> buffer = "' .. codeAccumule .. '"')
     local boiteCode = reecrireBuffer()
 
     if boiteCode and autoSubmitActif then
@@ -485,6 +486,7 @@ end
 -- et ne copie/écrit dans la boîte que si le monitoring est actif.
 local function surTexteDetecte(texte)
     if texte == "" then return end
+    print('[AutoCopier] Texte détecté (brut) : "' .. texte .. '"')
     ajouterHistorique(texte)
 
     if autoMode then
@@ -498,6 +500,7 @@ end
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
     codeAccumule = "" -- nouvelle tentative : on oublie les mots de la fois précédente
+    warn("[AutoCopier] Buffer remis à zéro, monitoring -> " .. tostring(nouvelEtat))
     updateInterface(autoMode)
 end
 
