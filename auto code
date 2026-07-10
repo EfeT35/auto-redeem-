@@ -452,16 +452,9 @@ local function soumettreCode(boiteCode)
     end
 end
 
--- Le script est la seule source de vérité pour le code en cours de construction :
--- si le jeu vide la boîte après un essai raté, elle est reconstruite à partir de ce
--- buffer au prochain mot au lieu de repartir d'une boîte vide sans le savoir.
--- Remis à zéro à chaque activation/désactivation du monitoring (nouvelle tentative).
-local codeAccumule = ""
-
--- Réécrit l'intégralité du code accumulé dans la boîte (ou en repli dans la textbox
--- focus), peu importe ce qu'il y avait avant : ça "remet les mots" si le jeu les a effacés.
--- Rouvre d'abord la fenêtre Codes si le jeu l'a fermée (souvent le cas juste après Submit).
-local function reecrireBuffer()
+-- Écrit un mot précis dans la boîte (remplace, pas d'accumulation). Rouvre d'abord la
+-- fenêtre Codes si le jeu l'a fermée (souvent le cas juste après Submit).
+local function ecrireMotDansBoite(texte)
     if not fenetreCodesEstOuverte() then
         ouvrirFenetreCodes()
     end
@@ -469,41 +462,36 @@ local function reecrireBuffer()
     local boiteCode = trouverBoiteCode()
     if boiteCode then
         boiteCode:CaptureFocus()
-        boiteCode.Text = codeAccumule
-        definirStatut('Code actuel : "' .. codeAccumule .. '"')
+        boiteCode.Text = texte
+        definirStatut('Écrit "' .. texte .. '"')
     else
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
-            cibleEcriture.Text = codeAccumule
+            cibleEcriture.Text = texte
         end
     end
 
-    if setclipboard then pcall(setclipboard, codeAccumule) end
+    if setclipboard then pcall(setclipboard, texte) end
 
     return boiteCode
 end
 
--- Ajoute un mot au code accumulé et le réécrit en entier, sans verrou ni auto-submit.
 -- Utilisée par les clics manuels sur l'historique : chaque clic doit s'appliquer
--- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
+-- immédiatement, sans verrou, même juste après une écriture automatique.
 ecrireBrut = function(texte)
     if texte == "" then return nil end
-    codeAccumule = codeAccumule .. texte
-    return reecrireBuffer()
+    return ecrireMotDansBoite(texte)
 end
 
--- Utilisée par la détection automatique : ajoute le mot au buffer, réécrit tout,
--- puis retente Submit. Comme le buffer est toujours réécrit en entier, un essai
--- raté (qui a pu vider la boîte côté jeu) n'efface jamais les mots déjà accumulés :
--- mot1 échoue -> mot1 est remis -> mot2 arrive -> mot1+mot2 est testé, etc.
+-- Utilisée par la détection automatique : écrit le mot, retente Submit, puis remet
+-- le DERNIER mot de l'historique (historique[1], la source de vérité affichée à
+-- l'écran) dans la boîte tout de suite après, sans attendre le mot suivant.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
 
-    codeAccumule = codeAccumule .. texte
-    print('[AutoCopier] Mot détecté "' .. texte .. '" -> buffer = "' .. codeAccumule .. '"')
-    local boiteCode = reecrireBuffer()
+    local boiteCode = ecrireMotDansBoite(texte)
 
     if boiteCode and autoSubmitActif then
         -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
@@ -512,10 +500,9 @@ ecrireTexte = function(texte)
         -- si ça rate à nouveau avant le bon mot.
         soumettreCode(boiteCode)
 
-        -- Le jeu vide parfois la boîte au moment même du Submit : on remet le buffer
-        -- tout de suite, sans attendre le mot suivant, pour que la boîte ne reste
-        -- jamais vide entre-temps.
-        reecrireBuffer()
+        if historique[1] then
+            ecrireMotDansBoite(historique[1])
+        end
     end
 
     enEcriture = false
@@ -538,8 +525,6 @@ end
 -- textes qui apparaissent/changent APRÈS l'activation doivent être copiés.
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
-    codeAccumule = "" -- nouvelle tentative : on oublie les mots de la fois précédente
-    warn("[AutoCopier] Buffer remis à zéro, monitoring -> " .. tostring(nouvelEtat))
     updateInterface(autoMode)
 end
 
