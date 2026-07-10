@@ -503,66 +503,52 @@ local function soumettreCode(boiteCode)
     end
 end
 
--- Surveille la boîte de code : si son texte RACCOURCIT (le joueur a supprimé un mot
--- manuellement), le compteur d'auto-submit repart à zéro puisqu'un mot compté n'y
--- est plus. Nos propres écritures ne font qu'allonger le texte donc ne déclenchent
--- jamais ce reset.
-local boiteCodeSurveillee = nil
-local dernierTexteConnu = ""
-local connexionTexteBox = nil
+-- Le script est la seule source de vérité pour le code en cours de construction :
+-- si le jeu vide la boîte après un essai raté, on la reconstruit à partir de ce
+-- buffer au prochain mot au lieu de repartir d'une boîte vide sans le savoir.
+-- Remis à zéro à chaque activation/désactivation du monitoring (nouvelle tentative).
+local codeAccumule = ""
 
-local function surveillerBoiteCode(boiteCode)
-    if boiteCode == boiteCodeSurveillee then return end
-
-    if connexionTexteBox then
-        connexionTexteBox:Disconnect()
-    end
-
-    boiteCodeSurveillee = boiteCode
-    dernierTexteConnu = boiteCode.Text or ""
-
-    connexionTexteBox = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
-        local texteActuel = boiteCode.Text or ""
-        if #texteActuel < #dernierTexteConnu then
-            compteurDepuisSoumission = 0
-            definirStatut("Texte réduit manuellement, compteur de soumission remis à zéro")
-        end
-        dernierTexteConnu = texteActuel
-    end)
-end
-
--- Écrit toujours à la suite du contenu déjà présent, sans verrou ni auto-submit.
--- Utilisée par les clics manuels sur l'historique : chaque clic doit s'ajouter
--- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
-ecrireBrut = function(texte)
-    if texte == "" then return nil end
-
+-- Réécrit l'intégralité du code accumulé dans la boîte (ou en repli dans la textbox
+-- focus), peu importe ce qu'il y avait avant : ça "remet les mots" si le jeu les a effacés.
+local function reecrireBuffer()
     local boiteCode = trouverBoiteCode()
     if boiteCode then
-        surveillerBoiteCode(boiteCode)
         boiteCode:CaptureFocus()
-        boiteCode.Text = (boiteCode.Text or "") .. texte
-        definirStatut('Écrit "' .. texte .. '"')
+        boiteCode.Text = codeAccumule
+        definirStatut('Code actuel : "' .. codeAccumule .. '"')
     else
-        -- Repli : si la fenêtre Codes n'est pas ouverte, on écrit dans la textbox actuellement focus
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
         if cibleEcriture then
-            cibleEcriture.Text = cibleEcriture.Text .. texte
+            cibleEcriture.Text = codeAccumule
         end
     end
 
-    if setclipboard then pcall(setclipboard, texte) end
+    if setclipboard then pcall(setclipboard, codeAccumule) end
 
     return boiteCode
 end
 
--- Utilisée par la détection automatique : écrit puis gère le compteur/seuil d'auto-submit.
+-- Ajoute un mot au code accumulé et le réécrit en entier, sans verrou ni auto-submit.
+-- Utilisée par les clics manuels sur l'historique : chaque clic doit s'appliquer
+-- immédiatement, même si une écriture automatique vient tout juste d'avoir lieu.
+ecrireBrut = function(texte)
+    if texte == "" then return nil end
+    codeAccumule = codeAccumule .. texte
+    return reecrireBuffer()
+end
+
+-- Utilisée par la détection automatique : ajoute le mot au buffer, réécrit tout,
+-- puis retente Submit à chaque nouveau mot une fois le seuil atteint. Comme le
+-- buffer est toujours réécrit en entier, un essai raté (qui a pu vider la boîte
+-- côté jeu) n'efface jamais les mots déjà accumulés pour la prochaine tentative.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
 
-    local boiteCode = ecrireBrut(texte)
+    codeAccumule = codeAccumule .. texte
+    local boiteCode = reecrireBuffer()
 
     if boiteCode and autoSubmitActif then
         compteurDepuisSoumission = compteurDepuisSoumission + 1
@@ -596,6 +582,7 @@ end
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
     compteurDepuisSoumission = 0 -- repart de zéro à chaque activation/désactivation du monitoring
+    codeAccumule = "" -- nouvelle tentative : on oublie les mots de la fois précédente
     updateInterface(autoMode)
 end
 
