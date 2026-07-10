@@ -475,8 +475,10 @@ local function surveillerBoiteCode(boiteCode)
     end)
 end
 
--- Écrit un mot précis dans la boîte (remplace, pas d'accumulation). Rouvre d'abord la
--- fenêtre Codes si le jeu l'a fermée (souvent le cas juste après Submit).
+-- Écrit un texte précis dans la boîte, tel quel (remplace tout le contenu actuel par
+-- ce texte). Rouvre d'abord la fenêtre Codes si le jeu l'a fermée (souvent le cas
+-- juste après Submit). C'est la primitive bas niveau ; l'accumulation se fait dans
+-- ecrireTexte/ecrireBrut en construisant le texte complet avant d'appeler ceci.
 local function ecrireMotDansBoite(texte)
     if not fenetreCodesEstOuverte() then
         ouvrirFenetreCodes()
@@ -502,22 +504,29 @@ local function ecrireMotDansBoite(texte)
     return boiteCode
 end
 
--- Utilisée par les clics manuels sur l'historique : chaque clic doit s'appliquer
--- immédiatement, sans verrou, même juste après une écriture automatique.
+-- Le code testé s'accumule mot après mot (pas de remplacement). Remis à zéro à chaque
+-- activation/désactivation du monitoring, pour repartir sur une tentative propre.
+local codeAccumule = ""
+
+-- Utilisée par les clics manuels sur l'historique : chaque clic ajoute le mot au
+-- code accumulé et réécrit tout, immédiatement et sans verrou, même juste après
+-- une écriture automatique.
 ecrireBrut = function(texte)
     if texte == "" then return nil end
-    return ecrireMotDansBoite(texte)
+    codeAccumule = codeAccumule .. texte
+    return ecrireMotDansBoite(codeAccumule)
 end
 
--- Utilisée par la détection automatique : écrit le mot puis retente Submit. La remise
--- du mot après un vidage éventuel n'est plus faite ici avec un délai fixe : c'est le
--- surveillerBoiteCode branché sur cette boîte qui la remet dès que le jeu la vide,
--- quel que soit le temps que ça prend.
+-- Utilisée par la détection automatique : ajoute le mot au code accumulé, réécrit
+-- tout, puis retente Submit. La remise après un vidage éventuel n'est plus faite ici
+-- avec un délai fixe : c'est le surveillerBoiteCode branché sur cette boîte qui la
+-- remet dès que le jeu la vide, quel que soit le temps que ça prend.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
 
-    local boiteCode = ecrireMotDansBoite(texte)
+    codeAccumule = codeAccumule .. texte
+    local boiteCode = ecrireMotDansBoite(codeAccumule)
 
     if boiteCode and autoSubmitActif then
         -- Zéro attente : appel direct, dans la même frame. Plus rapide mais risque de
@@ -548,6 +557,7 @@ end
 local function activerAutoMode(nouvelEtat)
     autoMode = nouvelEtat
     dernierMotEcrit = "" -- nouvelle tentative : plus rien à remettre tant qu'un mot n'est pas écrit
+    codeAccumule = "" -- nouvelle tentative : on oublie les mots de la fois précédente
     updateInterface(autoMode)
 end
 
