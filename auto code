@@ -502,6 +502,12 @@ ecrireTexte = function(texte)
         -- si ça rate à nouveau avant le bon mot.
         soumettreCode(boiteCode)
 
+        -- Le jeu vide la boîte en réaction au submit, mais via un évènement "Deferred" :
+        -- tant qu'on ne cède pas la main, ce vidage n'a pas encore eu lieu, donc le remettre
+        -- tout de suite se fait écraser dès que le vidage se déclenche juste après. Une
+        -- frame suffit à laisser ce vidage se produire avant qu'on réécrive par-dessus.
+        task.wait()
+
         if historique[1] then
             ecrireMotDansBoite(historique[1])
         end
