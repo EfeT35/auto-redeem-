@@ -429,26 +429,33 @@ local function soumettreCode(boiteCode)
     end
 end
 
--- Espion temporaire (diagnostic) : log tout changement de Text sur la boîte après notre
--- écriture, avec qui est connecté sur le signal, pour voir ce qui la vide juste après.
-local boiteEspionnee = nil
-local connexionEspion = nil
+-- Le jeu vide la boîte en réaction au submit, mais on ne sait pas combien de temps ça
+-- prend (peut-être une validation serveur, pas juste une frame côté client) — un délai
+-- fixe ne suffit pas. Solution réactive : on surveille la boîte en continu, et dès que
+-- son texte devient vide alors qu'on a un dernier mot valide, on le remet IMMÉDIATEMENT,
+-- peu importe combien de temps le vidage du jeu a mis à se déclencher.
+local dernierMotEcrit = ""
+local boiteSurveillee = nil
+local connexionSurveillance = nil
 
-local function espionnerBoiteCode(boiteCode)
-    if boiteCode == boiteEspionnee then return end
+local function surveillerBoiteCode(boiteCode)
+    if boiteCode == boiteSurveillee then return end
 
-    if connexionEspion then
-        connexionEspion:Disconnect()
+    if connexionSurveillance then
+        connexionSurveillance:Disconnect()
     end
-    boiteEspionnee = boiteCode
+    boiteSurveillee = boiteCode
 
     local ok, connexionsTexte = pcall(getconnections, boiteCode:GetPropertyChangedSignal("Text"))
     if ok then
-        print("[AutoCopier][ESPION] " .. #connexionsTexte .. " connexion(s) externe(s) sur Text de la boîte")
+        print("[AutoCopier] " .. #connexionsTexte .. " connexion(s) externe(s) sur Text de la boîte")
     end
 
-    connexionEspion = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
-        print('[AutoCopier][ESPION] Text a changé -> "' .. boiteCode.Text .. '" (t=' .. tostring(tick()) .. ')')
+    connexionSurveillance = boiteCode:GetPropertyChangedSignal("Text"):Connect(function()
+        if boiteCode.Text == "" and dernierMotEcrit ~= "" then
+            print('[AutoCopier] Boîte vidée par le jeu, remise immédiate de "' .. dernierMotEcrit .. '"')
+            boiteCode.Text = dernierMotEcrit
+        end
     end)
 end
 
@@ -461,11 +468,11 @@ local function ecrireMotDansBoite(texte)
 
     local boiteCode = trouverBoiteCode()
     if boiteCode then
-        espionnerBoiteCode(boiteCode)
+        surveillerBoiteCode(boiteCode)
+        dernierMotEcrit = texte
         boiteCode:CaptureFocus()
         boiteCode.Text = texte
         definirStatut('Écrit "' .. texte .. '"')
-        print("[AutoCopier] Vérif relecture immédiate : boiteCode.Text = \"" .. boiteCode.Text .. "\" (chemin : " .. boiteCode:GetFullName() .. ")")
     else
         definirStatut("Fenêtre Codes fermée, écriture en attente")
         local cibleEcriture = UserInputService:GetFocusedTextBox()
@@ -486,9 +493,10 @@ ecrireBrut = function(texte)
     return ecrireMotDansBoite(texte)
 end
 
--- Utilisée par la détection automatique : écrit le mot, retente Submit, puis réécrit
--- le même mot dans la boîte juste après (une fois le vidage du jeu passé), sans
--- attendre le mot suivant.
+-- Utilisée par la détection automatique : écrit le mot puis retente Submit. La remise
+-- du mot après un vidage éventuel n'est plus faite ici avec un délai fixe : c'est le
+-- surveillerBoiteCode branché sur cette boîte qui la remet dès que le jeu la vide,
+-- quel que soit le temps que ça prend.
 ecrireTexte = function(texte)
     if enEcriture or texte == "" then return end
     enEcriture = true
@@ -501,14 +509,6 @@ ecrireTexte = function(texte)
         -- "Deferred" des évènements Roblox) — repasser à task.defer(soumettreCode, boiteCode)
         -- si ça rate à nouveau avant le bon mot.
         soumettreCode(boiteCode)
-
-        -- Le jeu vide la boîte en réaction au submit, mais via un évènement "Deferred" :
-        -- tant qu'on ne cède pas la main, ce vidage n'a pas encore eu lieu, donc le remettre
-        -- tout de suite se fait écraser dès que le vidage se déclenche juste après. Une
-        -- frame suffit à laisser ce vidage se produire avant qu'on réécrive par-dessus.
-        task.wait()
-
-        ecrireMotDansBoite(texte)
     end
 
     enEcriture = false
